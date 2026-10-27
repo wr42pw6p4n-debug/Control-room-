@@ -130,6 +130,23 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
  .bar{gap:7px}
 }
 @media(max-width:390px){.tiles{grid-template-columns:1fr 1fr}.tile b{font-size:24px}header h1{min-width:100%}}
+/* engineer holidays */
+.hgrid{border-collapse:separate;border-spacing:0;font-size:11px;min-width:100%}
+.hgrid th,.hgrid td{padding:0;text-align:center;border-bottom:1px solid var(--line);border-right:1px solid var(--line);height:34px;min-width:29px}
+.hgrid th{font-size:10px;line-height:1.2;padding:4px 0;border-radius:0;position:static}
+.hgrid th.who,.hgrid td.who{text-align:left;padding:0 10px;min-width:92px;position:sticky;left:0;z-index:2;font-weight:800;font-size:12px;background:var(--card)}
+.hgrid th.who{background:var(--bg)}
+.hgrid th.we,.hgrid td.we{background:var(--bg)}
+.hgrid th.bh,.hgrid td.bh{background:rgba(70,120,210,.22)}
+.hgrid td.ap{background:var(--green);color:#fff;font-weight:800}
+.hgrid td.pe{background:repeating-linear-gradient(45deg,var(--accent) 0 5px,transparent 5px 10px)}
+.hgrid td.half{background:linear-gradient(90deg,var(--green) 50%,transparent 50%)}
+.hgrid td.cl{box-shadow:inset 0 0 0 2px var(--red)}
+.hgrid th.today{box-shadow:inset 0 -3px 0 var(--accent);font-weight:900}
+.hgrid th.clash{color:var(--red);font-weight:900}
+.hkey{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--mute);margin-top:10px}
+.hkey i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-3px;margin-right:5px;border:1px solid var(--line)}
+tr.hsoon td{background:var(--ambbg)}
 @media print{
  header,nav,.bar button,#refresh,#out,.commandbar,.search-results{display:none!important}
  body{background:#fff;color:#111}
@@ -182,6 +199,7 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
     <section id="v-repairs" class="hide"></section>
     <section id="v-po" class="hide"></section>
     <section id="v-folders" class="hide"></section>
+    <section id="v-hols" class="hide"></section>
   </main>
 </div>
 
@@ -239,12 +257,12 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], hol:{staff:[],bank:[],allow:{},reqs:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -254,9 +272,14 @@ async function load(){
     getAll('bookings','select=*&order=created_at.desc').catch(e=>{problems.push('Bookings: '+e.message); return [];}),
     getAll('profiles','select=id,name,role&order=name.asc').catch(()=>[]),
     getAll('engineer_phones','select=user_id,phone').catch(()=>[]),
-    getAll('weekly_folders','select=*&order=week_ending.desc,engineer.asc').catch(e=>{problems.push('Weekly folders: '+e.message); return [];})
+    getAll('weekly_folders','select=*&order=week_ending.desc,engineer.asc').catch(e=>{problems.push('Weekly folders: '+e.message); return [];}),
+    getAll('holiday_staff','select=*&order=sort_order.asc').catch(e=>{problems.push('Holidays: '+e.message); return [];}),
+    getAll('bank_holidays','select=*&order=day.asc').catch(()=>[]),
+    getAll('holiday_allowances','select=*').catch(()=>[]),
+    getAll('holiday_requests','select=*&order=start_date.asc').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
+  D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
@@ -346,7 +369,8 @@ function viewOverview(){
   const engs={}; due.filter(d=>d.days<=30).forEach(d=>{ (engs[d.eng]=engs[d.eng]||{o:0,s:0}); d.days<0?engs[d.eng].o++:engs[d.eng].s++; });
   const today=new Date();
   const greeting=today.getHours()<12?'Good morning':today.getHours()<17?'Good afternoon':'Good evening';
-  const alertTotal=over+due7+urgent+pending;
+  const hs=holSummary();
+  const alertTotal=over+due7+urgent+pending+hs.clashes.length+hs.pending;
   $('v-overview').innerHTML = `
   <div class="control-hero">
     <div class="eyebrow">Key Engineering · Operations</div>
@@ -365,6 +389,8 @@ function viewOverview(){
     <button class="alert-card ${due7?'warning':'good'}" id="alertDue7"><span class="alert-symbol">◷</span><span><strong>${due7}</strong><span>Due within 7 days</span></span></button>
     <button class="alert-card ${urgent?'danger':'good'}" id="alertUrgent"><span class="alert-symbol">🔧</span><span><strong>${urgent}</strong><span>Urgent repairs</span></span></button>
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
+    <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
+    <button class="alert-card ${hs.starting.length||hs.pending?'warning':'good'}" id="alertHol"><span class="alert-symbol">📅</span><span><strong>${hs.starting.length}</strong><span>Holidays starting within 14 days${hs.pending?' · '+hs.pending+' to approve':''}</span></span></button>
   </div>
   <div class="tiles">
     <div class="tile ${soon?'amber':''}"><b>${soon}</b><span>Due in next 30 days</span></div>
@@ -390,7 +416,7 @@ function viewOverview(){
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -703,6 +729,150 @@ function viewFolders(){
   };
 }
 
+// ---------- engineer holidays ----------
+// 25 days a year (1 Jan to 31 Dec) PLUS the 8 bank holidays. Weekends and bank holidays never count against the 25.
+// Requests come from the Job Manager (pending); admins (Dave, Maxine) approve here. Staff and bank holidays live in Supabase.
+const HOL_DEFAULT_DAYS = 25, HOL_CLASH_AT = 2;   // clash alert = this many people off the same working day
+const HOL_FALLBACK = ['Dave','Rob','Jono','Ricky','Martyn','Jordan','Ashleigh','Maxine'];
+let holMonth = todayIso().slice(0,8)+'01';
+const isAdmin = () => !!(D.profile && D.profile.role==='admin');
+const holStaff = () => { const a=D.hol.staff.filter(s=>s.active).sort((x,y)=>x.sort_order-y.sort_order).map(s=>s.name); return a.length?a:HOL_FALLBACK; };
+const holBank = () => { const m={}; D.hol.bank.forEach(b=>{ m[b.day]=b.name; }); return m; };
+const holLive = () => D.hol.reqs.filter(r=>r.status==='approved'||r.status==='pending');
+const isWork = (s,bank) => { const g=parse(s).getDay(); return g>0&&g<6&&!bank[s]; };
+const holAllow = (n,y) => { const v=D.hol.allow[n+'|'+y]; return v==null?HOL_DEFAULT_DAYS:v; };
+const fmtDay = s => parse(s).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+const inDays = s => Math.round((parse(s)-parse(todayIso()))/864e5);
+const holErr = e => { $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); };
+const personName = id => { const p=D.people.find(x=>x.id===id); const n=(p&&p.name)||''; return n.charAt(0).toUpperCase()+n.slice(1); };
+function nextWork(s,bank){ let n=addDays(s,1); for(let i=0;i<14&&!isWork(n,bank);i++) n=addDays(n,1); return n; }
+function holWorkDays(r,bank,year){ const out=[]; for(let s=r.start_date;s<=r.end_date;s=addDays(s,1)){ if(year&&s.slice(0,4)!==String(year)) continue; if(isWork(s,bank)) out.push(s); } return out; }
+const holDayCount = (r,bank,year) => holWorkDays(r,bank,year).length*(r.half_day?0.5:1);
+function holOffByDay(from,to,bank){
+  const m={};
+  holLive().forEach(r=>{ for(let s=r.start_date<from?from:r.start_date; s<=r.end_date&&s<=to; s=addDays(s,1)){ if(isWork(s,bank)) (m[s]=m[s]||[]).push({staff:r.staff,status:r.status,half:r.half_day,id:r.id}); } });
+  return m;
+}
+// Runs of working days where HOL_CLASH_AT or more people are off together
+function holClashes(from,to){
+  const bank=holBank(), off=holOffByDay(from,to,bank), out=[]; let prev=null;
+  Object.keys(off).sort().forEach(s=>{
+    const names=[...new Set(off[s].map(x=>x.staff))].sort();
+    if(names.length<HOL_CLASH_AT){ prev=null; return; }
+    const pend=off[s].some(x=>x.status==='pending'), key=names.join('|');
+    if(prev&&prev.key===key&&nextWork(prev.end,bank)===s){ prev.end=s; prev.pending=prev.pending||pend; }
+    else{ prev={start:s,end:s,names,key,pending:pend}; out.push(prev); }
+  });
+  return out;
+}
+function holSummary(){
+  const t=todayIso(), bank=holBank(), live=holLive();
+  return {
+    offToday:[...new Set(live.filter(r=>r.status==='approved'&&r.start_date<=t&&r.end_date>=t&&isWork(t,bank)).map(r=>r.staff))],
+    starting:live.filter(r=>r.start_date>t&&r.start_date<=addDays(t,14)).sort((a,b)=>a.start_date.localeCompare(b.start_date)),
+    clashes:holClashes(t,addDays(t,90)),
+    pending:D.hol.reqs.filter(r=>r.status==='pending').length
+  };
+}
+function holUsed(n,y){
+  const bank=holBank(), t=todayIso(), o={taken:0,booked:0,pending:0};
+  D.hol.reqs.filter(r=>r.staff===n&&(r.status==='approved'||r.status==='pending')).forEach(r=>{
+    const f=r.half_day?0.5:1;
+    holWorkDays(r,bank,y).forEach(s=>{ if(r.status==='pending') o.pending+=f; else if(s<=t) o.taken+=f; else o.booked+=f; });
+  });
+  return o;
+}
+// What a new holiday would cost, who it clashes with, and whether it goes over the allowance
+function holPreview(n,s,e,half){
+  if(!n||!s||!e||e<s) return {days:0,clash:[],over:[],text:'Choose the dates.'};
+  const bank=holBank(), probe={start_date:s,end_date:e,half_day:half}, days=holDayCount(probe,bank);
+  const off=holOffByDay(s,e,bank), clash=new Set();
+  holWorkDays(probe,bank).forEach(d=>{ const others=[...new Set((off[d]||[]).filter(x=>x.staff!==n).map(x=>x.staff))]; if(others.length>=HOL_CLASH_AT-1) others.forEach(o=>clash.add(o)); });
+  const over=[]; const years=[...new Set(holWorkDays(probe,bank).map(d=>d.slice(0,4)))];
+  years.forEach(y=>{ const u=holUsed(n,+y), mine=holDayCount(probe,bank,+y), left=holAllow(n,+y)-u.taken-u.booked-u.pending; if(mine>left) over.push(y+': '+mine+' days asked, '+Math.max(0,left)+' left'); });
+  let text=days+' working day'+(days===1?'':'s')+' (weekends and bank holidays are not counted)';
+  if(clash.size) text+=' · CLASHES with '+[...clash].join(', ');
+  if(over.length) text+=' · OVER ALLOWANCE ('+over.join('; ')+')';
+  return {days,clash:[...clash],over,text};
+}
+
+function viewHols(){
+  const bank=holBank(), staff=holStaff(), t=todayIso(), admin=isAdmin();
+  const first=holMonth, d0=parse(first); d0.setMonth(d0.getMonth()+1); d0.setDate(0); const last=iso(d0);
+  const yr=+first.slice(0,4), sum=holSummary(), off=holOffByDay(first,last,bank);
+  const clashDay=s=>new Set((off[s]||[]).map(x=>x.staff)).size>=HOL_CLASH_AT;
+  const byId={}; D.hol.reqs.forEach(r=>{ byId[r.id]=r; });
+  const days=[]; for(let s=first;s<=last;s=addDays(s,1)) days.push(s);
+  const monthName=parse(first).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  const range=r=>uk(r.start_date)+(r.end_date!==r.start_date?' to '+uk(r.end_date):'')+(r.half_day?' (half day)':'');
+  const statusPill=r=>r.status==='approved'?'<span class="pill green">APPROVED</span>':r.status==='pending'?'<span class="pill amber">PENDING</span>':'<span class="pill grey">'+esc(r.status.toUpperCase())+'</span>';
+
+  // ---- alerts ----
+  const clashHtml=sum.clashes.length?`<div class="err"><b>⚠ Holiday clashes in the next 90 days</b><br>${sum.clashes.map(c=>esc(fmtDay(c.start))+(c.end!==c.start?' to '+esc(fmtDay(c.end)):'')+': '+c.names.map(esc).join(', ')+(c.pending?' <span class="pill amber">includes a pending request</span>':'')).join('<br>')}<div class="small" style="margin-top:6px">Shown when ${HOL_CLASH_AT} or more people are off on the same working day.</div></div>`:'';
+  const pend=D.hol.reqs.filter(r=>r.status==='pending');
+  const pendHtml=pend.length?`<div class="card"><h2>Waiting for approval <span class="mute small">${pend.length}</span></h2><div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th></th></tr>${pend.map(r=>{ const p=holPreview(r.staff,r.start_date,r.end_date,r.half_day); return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}${p.clash.length?`<div class="small" style="color:var(--red)">Clashes with ${esc(p.clash.join(', '))}</div>`:''}${p.over.length?`<div class="small" style="color:var(--red)">Over allowance</div>`:''}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td>${admin?`<button class="primary" data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button>`:'<span class="mute small">Awaiting Dave or Maxine</span>'}</td></tr>`; }).join('')}</table></div></div>`:'';
+  const up=holLive().filter(r=>r.end_date>=t&&r.start_date<=addDays(t,30)).sort((a,b)=>a.start_date.localeCompare(b.start_date));
+  const upHtml=`<div class="card"><h2>Off now and coming up <span class="mute small">next 30 days</span></h2>${sum.offToday.length?`<p style="margin:0 0 10px"><b>Off today:</b> ${sum.offToday.map(esc).join(', ')}</p>`:''}${up.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th></th></tr>${up.map(r=>{ const d=inDays(r.start_date), soon=d>=0&&d<=14; return `<tr class="${soon?'hsoon':''}"><td>${d<=0?'<span class="pill red">OFF NOW</span>':pill(d)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${r.status==='pending'?'<span class="pill amber">PENDING</span>':''}</td></tr>`; }).join('')}</table></div>`:'<span class="mute">Nobody is booked off in the next 30 days.</span>'}</div>`;
+
+  // ---- month grid ----
+  const head=`<tr><th class="who">Engineer</th>${days.map(s=>{ const g=parse(s).getDay(); return `<th class="${g===0||g===6?'we':''} ${bank[s]?'bh':''} ${s===t?'today':''} ${clashDay(s)?'clash':''}" title="${esc(bank[s]||'')}">${+s.slice(8)}<br>${'SMTWTFS'[g]}</th>`; }).join('')}</tr>`;
+  const rows=staff.map(n=>`<tr><td class="who">${esc(n)}</td>${days.map(s=>{
+    const g=parse(s).getDay(), e=(off[s]||[]).find(x=>x.staff===n);
+    if(e){ const r=byId[e.id]; return `<td class="${e.status==='approved'?'ap':'pe'} ${e.half?'half':''} ${clashDay(s)?'cl':''}" title="${esc(n+' · '+e.status+' · '+range(r))}">${e.half?'½':''}</td>`; }
+    return `<td class="${g===0||g===6?'we':''} ${bank[s]?'bh':''}" title="${esc(bank[s]||'')}"></td>`;
+  }).join('')}</tr>`).join('');
+  const gridHtml=`<div class="card"><h2>${esc(monthName)}</h2><div class="wrap"><table class="hgrid"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    <div class="hkey"><span><i style="background:var(--green)"></i>Approved</span><span><i style="background:repeating-linear-gradient(45deg,var(--accent) 0 4px,transparent 4px 8px)"></i>Pending</span><span><i style="background:rgba(70,120,210,.35)"></i>Bank holiday</span><span><i style="background:var(--bg)"></i>Weekend</span><span><i style="box-shadow:inset 0 0 0 2px var(--red)"></i>Clash (${HOL_CLASH_AT}+ off)</span></div></div>`;
+
+  // ---- allowances ----
+  const stat=D.hol.bank.filter(b=>b.day.slice(0,4)===String(yr));
+  const allowRows=staff.map(n=>{ const a=holAllow(n,yr), u=holUsed(n,yr), left=a-u.taken-u.booked; return `<tr><td><b>${esc(n)}</b></td><td class="r">${admin?`<input type="number" min="0" step="0.5" value="${a}" data-allow="${esc(n)}" style="width:72px;text-align:right;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">`:a}</td><td class="r">${u.taken}</td><td class="r">${u.booked}</td><td class="r">${u.pending||'–'}</td><td class="r"><b style="color:${left<0?'var(--red)':'inherit'}">${left}</b>${u.pending?`<div class="small mute">${left-u.pending} if pending approved</div>`:''}</td></tr>`; }).join('');
+  const allowHtml=`<div class="card"><h2>${yr} allowances <span class="mute small">${HOL_DEFAULT_DAYS} days + ${stat.length} bank holidays</span></h2><div class="wrap"><table><tr><th>Engineer</th><th class="r">Allowance</th><th class="r">Taken</th><th class="r">Booked ahead</th><th class="r">Pending</th><th class="r">Left</th></tr>${allowRows}</table></div>
+    <p class="mute small" style="margin:10px 0 0"><b>Bank holidays ${yr}:</b> ${stat.map(b=>esc(uk(b.day))+' '+esc(b.name)).join(' · ')||'none loaded for this year'}. These are on top of the allowance, so weekends and bank holidays are never counted as holiday taken.${admin?' Change a person\'s allowance above for starters or carry-over.':''}</p></div>`;
+
+  // ---- all requests this year ----
+  const yearReqs=D.hol.reqs.filter(r=>r.start_date.slice(0,4)===String(yr)||r.end_date.slice(0,4)===String(yr)).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||a.start_date.localeCompare(b.start_date));
+  const reqHtml=`<div class="card"><h2>All ${yr} requests <span class="mute small">${yearReqs.length}</span></h2>${yearReqs.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th>Requested by</th>${admin?'<th></th>':''}</tr>${yearReqs.map(r=>`<tr style="${r.status==='rejected'||r.status==='cancelled'?'opacity:.55':''}"><td>${statusPill(r)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td class="small mute">${esc(personName(r.requested_by))}${r.decided_by?'<br>decided by '+esc(personName(r.decided_by)):''}</td>${admin?`<td>${r.status==='pending'?`<button data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button> `:''}<button data-ha="delete" data-id="${esc(r.id)}">Delete</button></td>`:''}</tr>`).join('')}</table></div>`:'<span class="mute">No holiday requests for this year yet.</span>'}</div>`;
+
+  const formHtml=admin?`<details class="card"><summary>Add a holiday for an engineer (approved straight away)</summary><form id="hForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="hStaff">${staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select><label class="small mute">From <input type="date" id="hFrom"></label><label class="small mute">To <input type="date" id="hTo"></label><label class="small"><input type="checkbox" id="hHalf"> Half day</label><input id="hNote" placeholder="Note (optional)" style="flex:1;min-width:160px"><button class="primary" type="submit">Add holiday</button></div><div id="hPrevTxt" class="small mute"></div></form></details>`:'';
+
+  $('v-hols').innerHTML=`<div class="bar"><button id="hPrev" aria-label="Previous month">◀</button><b>${esc(monthName)}</b><button id="hNext" aria-label="Next month">▶</button><button id="hNow">This month</button><span class="sp"></span><button id="hPrint">Print</button></div>
+  ${clashHtml}${pendHtml}${gridHtml}${upHtml}${allowHtml}${formHtml}${reqHtml}`;
+
+  const shift=n=>{ const d=parse(holMonth); d.setMonth(d.getMonth()+n); holMonth=iso(d); viewHols(); };
+  $('hPrev').onclick=()=>shift(-1); $('hNext').onclick=()=>shift(1);
+  $('hNow').onclick=()=>{ holMonth=todayIso().slice(0,8)+'01'; viewHols(); };
+  $('hPrint').onclick=()=>window.print();
+  $('v-hols').querySelectorAll('button[data-ha]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.id, act=b.dataset.ha; b.disabled=true;
+    try{
+      if(act==='delete'){ if(!confirm('Delete this holiday request?')){ b.disabled=false; return; } await api('/rest/v1/holiday_requests?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); }
+      else await api('/rest/v1/holiday_requests?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:act==='approve'?'approved':'rejected'})});
+      await load(); render();
+    }catch(e){ holErr(e); b.disabled=false; }
+  });
+  $('v-hols').querySelectorAll('input[data-allow]').forEach(i=>i.onchange=async()=>{
+    try{ await api('/rest/v1/holiday_allowances?on_conflict=staff,year',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({staff:i.dataset.allow,year:yr,allowance:Math.max(0,num(i.value)),updated_at:new Date().toISOString()})}); await load(); render(); }
+    catch(e){ holErr(e); }
+  });
+  if(admin){
+    const prev=()=>{ $('hPrevTxt').textContent=holPreview($('hStaff').value,$('hFrom').value,$('hTo').value||$('hFrom').value,$('hHalf').checked).text; };
+    ['hStaff','hFrom','hTo','hHalf'].forEach(id=>$(id).addEventListener('input',prev));
+    $('hFrom').addEventListener('change',()=>{ if(!$('hTo').value||$('hTo').value<$('hFrom').value) $('hTo').value=$('hFrom').value; prev(); });
+    $('hForm').onsubmit=async e=>{
+      e.preventDefault();
+      const n=$('hStaff').value, s=$('hFrom').value, en=$('hTo').value||s, half=$('hHalf').checked;
+      if(!s||en<s){ holErr(new Error('Pick a start date, and an end date that is not before it.')); return; }
+      if(half&&s!==en){ holErr(new Error('A half day can only be a single day.')); return; }
+      const p=holPreview(n,s,en,half);
+      if((p.clash.length||p.over.length)&&!confirm(p.text+'\n\nAdd it anyway?')) return;
+      const btn=$('hForm').querySelector('button[type=submit]'); btn.disabled=true;
+      try{ await api('/rest/v1/holiday_requests',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({staff:n,start_date:s,end_date:en,half_day:half,note:$('hNote').value.trim()||null,status:'approved'})}); await load(); render(); }
+      catch(err){ holErr(err); btn.disabled=false; }
+    };
+  }
+}
+
 // ---------- global command-room search ----------
 function runGlobalSearch(){
   const input=$('globalSearch'), box=$('searchResults');
@@ -739,14 +909,14 @@ function runGlobalSearch(){
 }
 
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders']];
 function render(){
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length};
-  $('tabs').innerHTML=TABS.map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length};
+  $('tabs').innerHTML=TABS.map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
