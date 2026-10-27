@@ -137,6 +137,7 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
  .card,.tile{box-shadow:none;break-inside:avoid;border-color:#bbb}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 </head>
 <body>
 
@@ -180,6 +181,7 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
     <section id="v-due" class="hide"></section>
     <section id="v-repairs" class="hide"></section>
     <section id="v-po" class="hide"></section>
+    <section id="v-folders" class="hide"></section>
   </main>
 </div>
 
@@ -237,12 +239,12 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -251,10 +253,11 @@ async function load(){
     getAll('office_materials','select=job_id,amount').catch(e=>{problems.push('Materials: '+e.message); return [];}),
     getAll('bookings','select=*&order=created_at.desc').catch(e=>{problems.push('Bookings: '+e.message); return [];}),
     getAll('profiles','select=id,name,role&order=name.asc').catch(()=>[]),
-    getAll('engineer_phones','select=user_id,phone').catch(()=>[])
+    getAll('engineer_phones','select=user_id,phone').catch(()=>[]),
+    getAll('weekly_folders','select=*&order=week_ending.desc,engineer.asc').catch(e=>{problems.push('Weekly folders: '+e.message); return [];})
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.reports = reports; D.profile = prof[0]||null;
+  D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
@@ -329,7 +332,7 @@ function repairsList(){
 }
 
 // ---------- views ----------
-let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', tab = 'overview';
+let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', tab = 'overview', foldersWeek = '';
 
 function pill(days){ return days<0?`<span class="pill red">OVERDUE ${-days}d</span>`: days===0?'<span class="pill red">TODAY</span>': days<=7?`<span class="pill amber">${days}d</span>`:`<span class="pill grey">${days}d</span>`; }
 
@@ -643,6 +646,63 @@ function viewPo(){
   });
 }
 
+// ---------- weekly job sheet folders ----------
+// Filed automatically by the Job Manager's "Merge Job Sheets This Week" button: one folder per engineer per week ending (Sunday).
+const firstKey = n => (String(n||'').trim().split(/\s+/)[0]||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const folderBlob = f => api('/storage/v1/object/authenticated/weekly-job-sheets/'+f.file_path).then(r=>r.blob());
+const patchFolder = (id,patch) => api('/rest/v1/weekly_folders?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(patch)});
+function viewFolders(){
+  if(!foldersWeek){ // Monday morning: open the newest week that actually has folders
+    const w=D.folders.map(f=>f.week_ending).sort().pop();
+    foldersWeek = w || addDays(monday(todayIso()),6);
+  }
+  const list=D.folders.filter(f=>f.week_ending===foldersWeek);
+  const uid=(store.get('session')||{}).uid||'';
+  const merged=new Set(list.map(f=>f.engineer_key)), miss={};
+  if(!D.jobsBlocked) weekJobs(addDays(foldersWeek,-6)).forEach(j=>j.engs.forEach(e=>{ const k=firstKey(e); if(k&&k!=='unassigned'&&!merged.has(k)){ (miss[k]=miss[k]||{name:e,n:0}).n++; } }));
+  const missing=Object.values(miss);
+  const pill=f=>f.processed_at?'<span class="pill green">PROCESSED</span>':f.printed_at?'<span class="pill grey">PRINTED</span>':'<span class="pill amber">NEW</span>';
+  const when=s=>new Date(s).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  const row=f=>`<tr><td>${pill(f)}</td><td><b>${esc(f.engineer)}</b></td><td class="r">${esc(f.job_count)}</td><td>${esc(when(f.merged_at))}</td><td><button class="primary" data-fa="open" data-id="${esc(f.id)}">Open / print</button> <button data-fa="printed" data-id="${esc(f.id)}" ${f.printed_at?'disabled':''}>Mark printed</button> <button data-fa="processed" data-id="${esc(f.id)}" ${f.processed_at?'disabled':''}>Mark processed</button></td></tr>`;
+  $('v-folders').innerHTML=`<div class="bar"><button id="fPrev">◀</button><b>Week ending ${uk(foldersWeek)}</b> <span class="mute small">Mon ${uk(addDays(foldersWeek,-6))} to Sun ${uk(foldersWeek)}</span><button id="fNext">▶</button><button id="fNow">Latest</button><span class="sp"></span><button id="fAll" class="primary" ${list.length?'':'disabled'}>Print whole week</button></div>
+  <div class="note">Filed automatically when an engineer presses “Merge Job Sheets This Week” in the Job Manager. Open a folder to print it, or use Print whole week for one combined PDF to print on Monday morning.</div>
+  ${missing.length?`<div class="note"><b>Jobs found but not merged yet:</b> ${missing.map(m=>esc(m.name)+' ('+m.n+' job'+(m.n===1?'':'s')+')').join(', ')}. They need to press Merge Job Sheets This Week in the Job Manager.</div>`:''}
+  <div class="card"><h2>Engineer folders <span class="mute small">${list.length}</span></h2><div class="wrap">${list.length?`<table><tr><th></th><th>Engineer</th><th class="r">Jobs</th><th>Merged</th><th></th></tr>${list.map(row).join('')}</table>`:'<span class="mute">Nothing has been merged for this week yet.</span>'}</div></div>`;
+  $('fPrev').onclick=()=>{foldersWeek=addDays(foldersWeek,-7);viewFolders();};
+  $('fNext').onclick=()=>{foldersWeek=addDays(foldersWeek,7);viewFolders();};
+  $('fNow').onclick=()=>{foldersWeek='';viewFolders();};
+  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); };
+  $('v-folders').querySelectorAll('button[data-fa]').forEach(b=>b.onclick=async()=>{
+    const f=list.find(x=>x.id===b.dataset.id), act=b.dataset.fa; if(!f) return;
+    b.disabled=true;
+    try{
+      if(act==='open'){
+        const w=window.open('','_blank'); // opened first so the browser allows it
+        try{ const url=URL.createObjectURL(await folderBlob(f)); if(w) w.location=url; else location.href=url; }catch(e){ if(w) w.close(); throw e; }
+        b.disabled=false; return;
+      }
+      const now=new Date().toISOString();
+      const patch = act==='printed' ? {printed_at:now,printed_by:uid} : Object.assign({processed_at:now,processed_by:uid}, f.printed_at?{}:{printed_at:now,printed_by:uid});
+      await patchFolder(f.id,patch); await load(); render();
+    }catch(e){ fail(e); b.disabled=false; }
+  });
+  $('fAll').onclick=async()=>{
+    const btn=$('fAll'), label=btn.textContent; btn.disabled=true; btn.textContent='Building print pack…';
+    const w=window.open('','_blank');
+    try{
+      if(!window.PDFLib) throw new Error('The PDF tool did not load. Check your connection and try again.');
+      const out=await PDFLib.PDFDocument.create();
+      for(const f of list){
+        const src=await PDFLib.PDFDocument.load(await (await folderBlob(f)).arrayBuffer());
+        (await out.copyPages(src,src.getPageIndices())).forEach(p=>out.addPage(p));
+      }
+      const url=URL.createObjectURL(new Blob([await out.save()],{type:'application/pdf'}));
+      if(w) w.location=url; else location.href=url;
+    }catch(e){ if(w) w.close(); fail(e); }
+    btn.disabled=false; btn.textContent=label;
+  };
+}
+
 // ---------- global command-room search ----------
 function runGlobalSearch(){
   const input=$('globalSearch'), box=$('searchResults');
@@ -679,14 +739,14 @@ function runGlobalSearch(){
 }
 
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders']];
 function render(){
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length};
+  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length};
   $('tabs').innerHTML=TABS.map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
