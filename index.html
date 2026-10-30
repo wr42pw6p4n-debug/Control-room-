@@ -200,6 +200,7 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-po" class="hide"></section>
     <section id="v-folders" class="hide"></section>
     <section id="v-hols" class="hide"></section>
+    <section id="v-portals" class="hide"></section>
   </main>
 </div>
 
@@ -257,12 +258,12 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], hol:{staff:[],bank:[],allow:{},reqs:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -276,10 +277,13 @@ async function load(){
     getAll('holiday_staff','select=*&order=sort_order.asc').catch(e=>{problems.push('Holidays: '+e.message); return [];}),
     getAll('bank_holidays','select=*&order=day.asc').catch(()=>[]),
     getAll('holiday_allowances','select=*').catch(()=>[]),
-    getAll('holiday_requests','select=*&order=start_date.asc').catch(()=>[])
+    getAll('holiday_requests','select=*&order=start_date.asc').catch(()=>[]),
+    getAll('holiday_approvers','select=user_id').catch(()=>[]),
+    getAll('customer_portals','select=*&order=customer.asc').catch(()=>[]),
+    getAll('customers','select=name_key,data,updated_at&order=name_key.asc').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
+  D.portals = portals; D.custs = (prof[0]&&prof[0].role==='admin')?custs:[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id)}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
@@ -735,7 +739,8 @@ function viewFolders(){
 const HOL_DEFAULT_DAYS = 25, HOL_CLASH_AT = 2;   // clash alert = this many people off the same working day
 const HOL_FALLBACK = ['Dave','Rob','Jono','Ricky','Martyn','Jordan','Ashleigh','Maxine'];
 let holMonth = todayIso().slice(0,8)+'01';
-const isAdmin = () => !!(D.profile && D.profile.role==='admin');
+// Only the people in the holiday_approvers table (Dave, Rob, Maxine) can approve. Supabase enforces this too, so a page edit can't bypass it.
+const isAdmin = () => D.hol.approvers.includes((store.get('session')||{}).uid);
 const holStaff = () => { const a=D.hol.staff.filter(s=>s.active).sort((x,y)=>x.sort_order-y.sort_order).map(s=>s.name); return a.length?a:HOL_FALLBACK; };
 const holBank = () => { const m={}; D.hol.bank.forEach(b=>{ m[b.day]=b.name; }); return m; };
 const holLive = () => D.hol.reqs.filter(r=>r.status==='approved'||r.status==='pending');
@@ -810,7 +815,7 @@ function viewHols(){
   // ---- alerts ----
   const clashHtml=sum.clashes.length?`<div class="err"><b>⚠ Holiday clashes in the next 90 days</b><br>${sum.clashes.map(c=>esc(fmtDay(c.start))+(c.end!==c.start?' to '+esc(fmtDay(c.end)):'')+': '+c.names.map(esc).join(', ')+(c.pending?' <span class="pill amber">includes a pending request</span>':'')).join('<br>')}<div class="small" style="margin-top:6px">Shown when ${HOL_CLASH_AT} or more people are off on the same working day.</div></div>`:'';
   const pend=D.hol.reqs.filter(r=>r.status==='pending');
-  const pendHtml=pend.length?`<div class="card"><h2>Waiting for approval <span class="mute small">${pend.length}</span></h2><div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th></th></tr>${pend.map(r=>{ const p=holPreview(r.staff,r.start_date,r.end_date,r.half_day); return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}${p.clash.length?`<div class="small" style="color:var(--red)">Clashes with ${esc(p.clash.join(', '))}</div>`:''}${p.over.length?`<div class="small" style="color:var(--red)">Over allowance</div>`:''}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td>${admin?`<button class="primary" data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button>`:'<span class="mute small">Awaiting Dave or Maxine</span>'}</td></tr>`; }).join('')}</table></div></div>`:'';
+  const pendHtml=pend.length?`<div class="card"><h2>Waiting for approval <span class="mute small">${pend.length}</span></h2><div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th></th></tr>${pend.map(r=>{ const p=holPreview(r.staff,r.start_date,r.end_date,r.half_day); return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}${p.clash.length?`<div class="small" style="color:var(--red)">Clashes with ${esc(p.clash.join(', '))}</div>`:''}${p.over.length?`<div class="small" style="color:var(--red)">Over allowance</div>`:''}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td>${admin?`<button class="primary" data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button>`:`<span class="mute small">Awaiting ${D.hol.approvers.map(personName).filter(Boolean).map(esc).join(', ')||'the office'}</span>`}</td></tr>`; }).join('')}</table></div></div>`:'';
   const up=holLive().filter(r=>r.end_date>=t&&r.start_date<=addDays(t,30)).sort((a,b)=>a.start_date.localeCompare(b.start_date));
   const upHtml=`<div class="card"><h2>Off now and coming up <span class="mute small">next 30 days</span></h2>${sum.offToday.length?`<p style="margin:0 0 10px"><b>Off today:</b> ${sum.offToday.map(esc).join(', ')}</p>`:''}${up.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th></th></tr>${up.map(r=>{ const d=inDays(r.start_date), soon=d>=0&&d<=14; return `<tr class="${soon?'hsoon':''}"><td>${d<=0?'<span class="pill red">OFF NOW</span>':pill(d)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${r.status==='pending'?'<span class="pill amber">PENDING</span>':''}</td></tr>`; }).join('')}</table></div>`:'<span class="mute">Nobody is booked off in the next 30 days.</span>'}</div>`;
 
@@ -873,6 +878,98 @@ function viewHols(){
   }
 }
 
+// ---------- customer portals ----------
+// Links and numbers for customers' supplier portals, so the office can get to them quickly. Office (admin logins) only.
+// There is deliberately no password field: keep logins in a proper password manager.
+const portalOK = () => !!(D.profile && D.profile.role==='admin');
+let portalQ = '', portalEdit = null;
+const portalUrl = u => { u=String(u||'').trim(); if(!u) return ''; if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u='https://'+u; return /^https?:\/\//i.test(u)?u:''; };
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch(e){ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(x){} a.remove(); return ok; }
+}
+// ----- Key Engineering customer portal logins: company name + 6-digit PIN (customers.data.customerpin, checked by the portal) -----
+let pinQ = '';
+function viewPortals(){
+  const withPin=D.custs.filter(c=>String((c.data&&c.data.customerpin)||'').trim()).length;
+  $('v-portals').innerHTML=`<div class="card"><h2>Customer portal logins <span class="mute small" id="pinCount">${withPin} of ${D.custs.length} customers have access</span></h2>
+    <div class="bar" style="box-shadow:none;padding:0;border:0">
+      <input id="pinSearch" type="search" placeholder="Search customer or PIN…" value="${esc(pinQ)}" style="flex:1;min-width:200px" autocomplete="off">
+      <label class="small mute" style="flex:1;min-width:220px">Portal address (for the copied login message)<input id="pinPortal" placeholder="https://…" value="${esc(store.get('portal_url')||'')}" style="width:100%"></label>
+    </div>
+    <div class="note" style="margin-top:12px">Customers sign in to the portal with their <b>company name</b> and their own <b>6-digit PIN</b>. A PIN belongs to one customer only. Making a new PIN stops the old one working straight away. Customers appear here once they have been added in the Crane Service Report app.</div>
+    <div id="pinList"></div></div>
+  <div class="section-kicker">Customers' own supplier portals</div><div id="pSupp"></div>`;
+  const list=()=>{
+    const rs=D.custs.map(c=>({key:c.name_key,name:String((c.data&&c.data.customer)||c.name_key),pin:String((c.data&&c.data.customerpin)||'').trim()}))
+      .filter(r=>!pinQ.trim()||(r.name+' '+r.pin).toLowerCase().includes(pinQ.trim().toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
+    $('pinList').innerHTML=rs.length?`<div class="wrap"><table><tr><th>Customer</th><th>Portal PIN</th><th></th></tr>${rs.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${r.pin?`<span style="font-size:18px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums">${esc(r.pin)}</span>`:'<span class="pill grey">NO PORTAL ACCESS</span>'}</td><td style="white-space:nowrap">${r.pin?`<button data-pcopy="${esc(r.key)}">Copy PIN</button> <button class="primary" data-plogin="${esc(r.key)}">Copy login details</button> <button data-pnew="${esc(r.key)}">New PIN</button> <button data-prev="${esc(r.key)}">Remove access</button>`:`<button class="primary" data-pgive="${esc(r.key)}">Give portal access</button>`}</td></tr>`).join('')}</table></div>`
+      :`<div class="empty-state">${D.custs.length?'No matches.':'No customers found yet. Customers are added in the Crane Service Report app.'}</div>`;
+    const cust=k=>D.custs.find(c=>c.name_key===k), nm=c=>String((c.data&&c.data.customer)||c.name_key), pn=c=>String((c.data&&c.data.customerpin)||'').trim();
+    const rpc=async(fn,body,done)=>{ try{ const r=await (await api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).text(); await load(); render(); $('msg').innerHTML='<div class="note">'+esc(done(r.replace(/"/g,'')))+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ holErr(e); } };
+    const flash=(b,t)=>{ const o=b.textContent; b.textContent=t; setTimeout(()=>{ b.textContent=o; },1600); };
+    $('pinList').querySelectorAll('button[data-pgive]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pgive); b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:false},pin=>'Portal access created for '+nm(c)+'. PIN: '+pin+'. Use “Copy login details” to send it to them.'); });
+    $('pinList').querySelectorAll('button[data-pnew]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pnew); if(!confirm('Make a new PIN for '+nm(c)+'?\n\nTheir old PIN stops working straight away, so you will need to give them the new one.')) return; b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:true},pin=>'New PIN for '+nm(c)+': '+pin+'. The old one no longer works.'); });
+    $('pinList').querySelectorAll('button[data-prev]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.prev); if(!confirm('Remove portal access for '+nm(c)+'?\n\nTheir PIN stops working straight away. You can give access again later with a new PIN.')) return; b.disabled=true; rpc('revoke_customer_pin',{p_name_key:c.name_key},()=>'Portal access removed for '+nm(c)+'.'); });
+    $('pinList').querySelectorAll('button[data-pcopy]').forEach(b=>b.onclick=async()=>{ const ok=await copyText(pn(cust(b.dataset.pcopy))); flash(b,ok?'Copied ✓':'Not copied'); });
+    $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||'').trim(); const ok=await copyText('Key Engineering customer portal\n'+(url?'Address: '+url+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
+  };
+  list();
+  $('pinSearch').oninput=ev=>{ pinQ=ev.target.value; list(); };
+  $('pinPortal').onchange=ev=>store.set('portal_url',ev.target.value.trim());
+  viewSupplierPortals();
+}
+
+function viewSupplierPortals(){
+  const names=[...new Set(D.jobs.map(j=>(j.data||{}).customerName||(j.data||{}).customer).filter(Boolean).concat(D.portals.map(p=>p.customer)))].sort((a,b)=>a.localeCompare(b));
+  const e=portalEdit?D.portals.find(p=>p.id===portalEdit):null;
+  $('pSupp').innerHTML=`<div class="bar"><input id="pSearch" type="search" placeholder="Search customer, portal or number…" value="${esc(portalQ)}" style="flex:1;min-width:200px" autocomplete="off"><span class="mute small" id="pCount"></span></div>
+  <details class="card" ${e?'open':''} id="pDetails"><summary>${e?'Edit portal entry':'Add a customer portal'}</summary><form id="pForm" style="margin-top:12px">
+    <div class="bar" style="box-shadow:none;align-items:flex-end">
+      <label class="small mute" style="flex:1;min-width:180px">Customer<input id="pCust" list="pCustList" required value="${esc(e?e.customer:'')}" style="width:100%"></label>
+      <label class="small mute" style="flex:1;min-width:150px">Portal name<input id="pName" placeholder="e.g. Coupa, SAP Ariba, supplier portal" value="${esc(e?e.portal_name:'')}" style="width:100%"></label>
+      <label class="small mute" style="flex:1;min-width:150px">Our number<input id="pNum" placeholder="supplier / vendor / account no." value="${esc(e?e.number:'')}" style="width:100%"></label>
+    </div>
+    <div class="bar" style="box-shadow:none;align-items:flex-end">
+      <label class="small mute" style="flex:2;min-width:220px">Portal link<input id="pUrl" placeholder="https://…" value="${esc(e?e.url:'')}" style="width:100%"></label>
+      <label class="small mute" style="flex:2;min-width:220px">Notes<input id="pNotes" placeholder="contact, how to raise an invoice…" value="${esc(e?e.notes:'')}" style="width:100%"></label>
+      <button class="primary" type="submit">${e?'Save changes':'Add portal'}</button>${e?'<button type="button" id="pCancel">Cancel</button>':''}
+    </div>
+    <datalist id="pCustList">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
+    <div class="mute small">Don't store passwords here. Numbers and links only.</div></form></details>
+  <div id="pList"></div>`;
+  const list=()=>{
+    const q=portalQ.trim().toLowerCase();
+    const rows=D.portals.filter(p=>!q||[p.customer,p.portal_name,p.number,p.notes,p.url].join(' ').toLowerCase().includes(q));
+    $('pCount').textContent=rows.length+' of '+D.portals.length;
+    $('pList').innerHTML=rows.length?`<div class="card"><div class="wrap"><table><tr><th>Customer</th><th>Portal</th><th>Our number</th><th>Notes</th><th></th></tr>${rows.map(p=>{ const u=portalUrl(p.url); return `<tr><td><b>${esc(p.customer)}</b></td><td>${esc(p.portal_name||'')}</td><td>${p.number?`<span style="font-variant-numeric:tabular-nums;font-weight:700">${esc(p.number)}</span> <button data-pc="${esc(p.id)}" aria-label="Copy number">Copy</button>`:'<span class="mute">–</span>'}</td><td class="small">${esc(p.notes||'')}</td><td style="white-space:nowrap">${u?`<button class="primary" data-po="${esc(p.id)}">Open portal ↗</button> `:''}<button data-pe="${esc(p.id)}">Edit</button> <button data-pd="${esc(p.id)}">Delete</button></td></tr>`; }).join('')}</table></div></div>`
+      :`<div class="card"><div class="empty-state">${D.portals.length?'No matches.':'No customer portals saved yet. Use “Add a customer portal” above.'}</div></div>`;
+    $('pList').querySelectorAll('button[data-po]').forEach(b=>b.onclick=()=>{ const p=D.portals.find(x=>x.id===b.dataset.po); const u=p&&portalUrl(p.url); if(u) window.open(u,'_blank','noopener'); });
+    $('pList').querySelectorAll('button[data-pc]').forEach(b=>b.onclick=async()=>{ const p=D.portals.find(x=>x.id===b.dataset.pc); const ok=await copyText(p.number); b.textContent=ok?'Copied ✓':'Press and hold the number'; setTimeout(()=>{b.textContent='Copy';},1600); });
+    $('pList').querySelectorAll('button[data-pe]').forEach(b=>b.onclick=()=>{ portalEdit=b.dataset.pe; viewSupplierPortals(); window.scrollTo({top:0,behavior:'smooth'}); });
+    $('pList').querySelectorAll('button[data-pd]').forEach(b=>b.onclick=async()=>{
+      const p=D.portals.find(x=>x.id===b.dataset.pd); if(!confirm('Delete the portal entry for '+p.customer+'?')) return; b.disabled=true;
+      try{ await api('/rest/v1/customer_portals?id=eq.'+encodeURIComponent(p.id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); await load(); render(); }
+      catch(err){ holErr(err); b.disabled=false; }
+    });
+  };
+  list();
+  $('pSearch').oninput=ev=>{ portalQ=ev.target.value; list(); };
+  if($('pCancel')) $('pCancel').onclick=()=>{ portalEdit=null; viewSupplierPortals(); };
+  $('pForm').onsubmit=async ev=>{
+    ev.preventDefault();
+    const urlIn=$('pUrl').value.trim(), url=portalUrl(urlIn);
+    if(urlIn&&!url){ holErr(new Error('The portal link must start with http:// or https://')); return; }
+    const body={customer:$('pCust').value.trim(),portal_name:$('pName').value.trim()||null,number:$('pNum').value.trim()||null,url:url||null,notes:$('pNotes').value.trim()||null,updated_at:new Date().toISOString()};
+    const btn=$('pForm').querySelector('button[type=submit]'); btn.disabled=true;
+    try{
+      if(e) await api('/rest/v1/customer_portals?id=eq.'+encodeURIComponent(e.id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(body)});
+      else await api('/rest/v1/customer_portals',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(body)});
+      portalEdit=null; await load(); render();
+    }catch(err){ holErr(err); btn.disabled=false; }
+  };
+}
+
 // ---------- global command-room search ----------
 function runGlobalSearch(){
   const input=$('globalSearch'), box=$('searchResults');
@@ -909,14 +1006,15 @@ function runGlobalSearch(){
 }
 
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['portals','Customer portals']];
 function render(){
+  if(tab==='portals'&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
   const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length};
-  $('tabs').innerHTML=TABS.map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  $('tabs').innerHTML=TABS.filter(([k])=>k!=='portals'||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
