@@ -181,7 +181,7 @@ tr.hsoon td{background:var(--ambbg)}
     <div class="commandbar">
       <div class="command-search">
         <span class="search-icon">⌕</span>
-        <input id="globalSearch" type="search" placeholder="Search jobs, customers, cranes, reports, purchase orders…" autocomplete="off" aria-label="Search all office records">
+        <input id="globalSearch" type="search" placeholder="Search jobs, customers, cranes, service / inspection / LOLER reports, purchase orders…" autocomplete="off" aria-label="Search all office records">
         <span class="hint">SEARCH</span>
       </div>
       <div class="command-status">
@@ -201,6 +201,7 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-folders" class="hide"></section>
     <section id="v-hols" class="hide"></section>
     <section id="v-portals" class="hide"></section>
+    <section id="v-chat" class="hide"></section>
   </main>
 </div>
 
@@ -258,12 +259,12 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -280,10 +281,11 @@ async function load(){
     getAll('holiday_requests','select=*&order=start_date.asc').catch(()=>[]),
     getAll('holiday_approvers','select=user_id').catch(()=>[]),
     getAll('customer_portals','select=*&order=customer.asc').catch(()=>[]),
-    getAll('customers','select=name_key,data,updated_at&order=name_key.asc').catch(()=>[])
+    getAll('customers','select=name_key,data,updated_at&order=name_key.asc').catch(()=>[]),
+    getAll('bank_holiday_work','select=*&order=worked_date.desc').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.portals = portals; D.custs = (prof[0]&&prof[0].role==='admin')?custs:[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id)}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
+  D.portals = portals; D.custs = (prof[0]&&prof[0].role==='admin')?custs:[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
@@ -781,26 +783,35 @@ function holSummary(){
 }
 function holUsed(n,y){
   const bank=holBank(), t=todayIso(), o={taken:0,booked:0,pending:0};
-  D.hol.reqs.filter(r=>r.staff===n&&(r.status==='approved'||r.status==='pending')).forEach(r=>{
+  D.hol.reqs.filter(r=>r.staff===n&&!r.lieu&&(r.status==='approved'||r.status==='pending')).forEach(r=>{
     const f=r.half_day?0.5:1;
     holWorkDays(r,bank,y).forEach(s=>{ if(r.status==='pending') o.pending+=f; else if(s<=t) o.taken+=f; else o.booked+=f; });
   });
   return o;
 }
-// What a new holiday would cost, who it clashes with, and whether it goes over the allowance
-function holPreview(n,s,e,half){
+// Days in lieu: working a bank holiday earns a day off, which does NOT come off the 25. Earned days are recorded in bank_holiday_work.
+function holLieu(n){
+  const bank=holBank(); let earned=0, taken=0, pending=0;
+  D.hol.work.filter(w=>w.staff===n).forEach(w=>{ earned+=num(w.days); });
+  D.hol.reqs.filter(r=>r.staff===n&&r.lieu&&(r.status==='approved'||r.status==='pending')).forEach(r=>{ const c=holDayCount(r,bank); if(r.status==='pending') pending+=c; else taken+=c; });
+  return {earned,taken,pending,left:earned-taken-pending};
+}
+// What a new holiday would cost, who it clashes with, and whether it goes over the allowance (or the lieu balance)
+function holPreview(n,s,e,half,lieu){
   if(!n||!s||!e||e<s) return {days:0,clash:[],over:[],text:'Choose the dates.'};
   const bank=holBank(), probe={start_date:s,end_date:e,half_day:half}, days=holDayCount(probe,bank);
   const off=holOffByDay(s,e,bank), clash=new Set();
   holWorkDays(probe,bank).forEach(d=>{ const others=[...new Set((off[d]||[]).filter(x=>x.staff!==n).map(x=>x.staff))]; if(others.length>=HOL_CLASH_AT-1) others.forEach(o=>clash.add(o)); });
   const over=[]; const years=[...new Set(holWorkDays(probe,bank).map(d=>d.slice(0,4)))];
-  years.forEach(y=>{ const u=holUsed(n,+y), mine=holDayCount(probe,bank,+y), left=holAllow(n,+y)-u.taken-u.booked-u.pending; if(mine>left) over.push(y+': '+mine+' days asked, '+Math.max(0,left)+' left'); });
-  let text=days+' working day'+(days===1?'':'s')+' (weekends and bank holidays are not counted)';
+  if(lieu){ const L=holLieu(n); if(days>L.left) over.push(days+' asked, only '+Math.max(0,L.left)+' day'+(L.left===1?'':'s')+' in lieu left'); }
+  else years.forEach(y=>{ const u=holUsed(n,+y), mine=holDayCount(probe,bank,+y), left=holAllow(n,+y)-u.taken-u.booked-u.pending; if(mine>left) over.push(y+': '+mine+' days asked, '+Math.max(0,left)+' left'); });
+  let text=days+' working day'+(days===1?'':'s')+(lieu?' in lieu':'')+' (weekends and bank holidays are not counted)';
   if(clash.size) text+=' · CLASHES with '+[...clash].join(', ');
-  if(over.length) text+=' · OVER ALLOWANCE ('+over.join('; ')+')';
+  if(over.length) text+=' · '+(lieu?'NOT ENOUGH DAYS IN LIEU':'OVER ALLOWANCE')+' ('+over.join('; ')+')';
   return {days,clash:[...clash],over,text};
 }
 
+let holOpen='';
 function viewHols(){
   const bank=holBank(), staff=holStaff(), t=todayIso(), admin=isAdmin();
   const first=holMonth, d0=parse(first); d0.setMonth(d0.getMonth()+1); d0.setDate(0); const last=iso(d0);
@@ -809,7 +820,7 @@ function viewHols(){
   const byId={}; D.hol.reqs.forEach(r=>{ byId[r.id]=r; });
   const days=[]; for(let s=first;s<=last;s=addDays(s,1)) days.push(s);
   const monthName=parse(first).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-  const range=r=>uk(r.start_date)+(r.end_date!==r.start_date?' to '+uk(r.end_date):'')+(r.half_day?' (half day)':'');
+  const range=r=>uk(r.start_date)+(r.end_date!==r.start_date?' to '+uk(r.end_date):'')+(r.half_day?' (half day)':'')+(r.lieu?' (day in lieu)':'');
   const statusPill=r=>r.status==='approved'?'<span class="pill green">APPROVED</span>':r.status==='pending'?'<span class="pill amber">PENDING</span>':'<span class="pill grey">'+esc(r.status.toUpperCase())+'</span>';
 
   // ---- alerts ----
@@ -831,18 +842,21 @@ function viewHols(){
 
   // ---- allowances ----
   const stat=D.hol.bank.filter(b=>b.day.slice(0,4)===String(yr));
-  const allowRows=staff.map(n=>{ const a=holAllow(n,yr), u=holUsed(n,yr), left=a-u.taken-u.booked; return `<tr><td><b>${esc(n)}</b></td><td class="r">${admin?`<input type="number" min="0" step="0.5" value="${a}" data-allow="${esc(n)}" style="width:72px;text-align:right;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">`:a}</td><td class="r">${u.taken}</td><td class="r">${u.booked}</td><td class="r">${u.pending||'–'}</td><td class="r"><b style="color:${left<0?'var(--red)':'inherit'}">${left}</b>${u.pending?`<div class="small mute">${left-u.pending} if pending approved</div>`:''}</td></tr>`; }).join('');
-  const allowHtml=`<div class="card"><h2>${yr} allowances <span class="mute small">${HOL_DEFAULT_DAYS} days + ${stat.length} bank holidays</span></h2><div class="wrap"><table><tr><th>Engineer</th><th class="r">Allowance</th><th class="r">Taken</th><th class="r">Booked ahead</th><th class="r">Pending</th><th class="r">Left</th></tr>${allowRows}</table></div>
-    <p class="mute small" style="margin:10px 0 0"><b>Bank holidays ${yr}:</b> ${stat.map(b=>esc(uk(b.day))+' '+esc(b.name)).join(' · ')||'none loaded for this year'}. These are on top of the allowance, so weekends and bank holidays are never counted as holiday taken.${admin?' Change a person\'s allowance above for starters or carry-over.':''}</p></div>`;
+  const allowRows=staff.map(n=>{ const a=holAllow(n,yr), u=holUsed(n,yr), left=a-u.taken-u.booked, L=holLieu(n); return `<tr><td><b>${esc(n)}</b></td><td class="r">${admin?`<input type="number" min="0" step="0.5" value="${a}" data-allow="${esc(n)}" style="width:72px;text-align:right;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">`:a}</td><td class="r">${u.taken}</td><td class="r">${u.booked}</td><td class="r">${u.pending||'–'}</td><td class="r"><b style="color:${left<0?'var(--red)':'inherit'}">${left}</b>${u.pending?`<div class="small mute">${left-u.pending} if pending approved</div>`:''}</td><td class="r">${L.earned||'–'}</td><td class="r">${L.taken+L.pending||'–'}</td><td class="r"><b style="color:${L.left<0?'var(--red)':'inherit'}">${L.left||'–'}</b></td></tr>`; }).join('');
+  const allowHtml=`<div class="card"><h2>${yr} allowances <span class="mute small">${HOL_DEFAULT_DAYS} days + ${stat.length} bank holidays</span></h2><div class="wrap"><table><tr><th>Engineer</th><th class="r">Allowance</th><th class="r">Taken</th><th class="r">Booked ahead</th><th class="r">Pending</th><th class="r">Left</th><th class="r">Lieu earned</th><th class="r">Lieu used</th><th class="r">Lieu left</th></tr>${allowRows}</table></div>
+    <p class="mute small" style="margin:10px 0 0"><b>Bank holidays ${yr}:</b> ${stat.map(b=>esc(uk(b.day))+' '+esc(b.name)).join(' · ')||'none loaded for this year'}. These are on top of the allowance, so weekends and bank holidays are never counted as holiday taken. Working a bank holiday earns a day in lieu (record it in the box below); days in lieu don't come off the ${HOL_DEFAULT_DAYS}.${admin?' Change a person\'s allowance above for starters or carry-over.':''}</p></div>`;
 
   // ---- all requests this year ----
   const yearReqs=D.hol.reqs.filter(r=>r.start_date.slice(0,4)===String(yr)||r.end_date.slice(0,4)===String(yr)).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||a.start_date.localeCompare(b.start_date));
   const reqHtml=`<div class="card"><h2>All ${yr} requests <span class="mute small">${yearReqs.length}</span></h2>${yearReqs.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th>Requested by</th>${admin?'<th></th>':''}</tr>${yearReqs.map(r=>`<tr style="${r.status==='rejected'||r.status==='cancelled'?'opacity:.55':''}"><td>${statusPill(r)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td class="small mute">${esc(personName(r.requested_by))}${r.decided_by?'<br>decided by '+esc(personName(r.decided_by)):''}</td>${admin?`<td>${r.status==='pending'?`<button data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button> `:''}<button data-ha="delete" data-id="${esc(r.id)}">Delete</button></td>`:''}</tr>`).join('')}</table></div>`:'<span class="mute">No holiday requests for this year yet.</span>'}</div>`;
 
-  const formHtml=admin?`<details class="card"><summary>Add a holiday for an engineer (approved straight away)</summary><form id="hForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="hStaff">${staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select><label class="small mute">From <input type="date" id="hFrom"></label><label class="small mute">To <input type="date" id="hTo"></label><label class="small"><input type="checkbox" id="hHalf"> Half day</label><input id="hNote" placeholder="Note (optional)" style="flex:1;min-width:160px"><button class="primary" type="submit">Add holiday</button></div><div id="hPrevTxt" class="small mute"></div></form></details>`:'';
+  const work=D.hol.work.slice().sort((a,b)=>b.worked_date.localeCompare(a.worked_date));
+  const workHtml=admin?`<details class="card"${holOpen==='w'?' open':''}><summary>Worked a bank holiday? Record it and give a day in lieu <span class="mute small">${work.length} recorded</span></summary><form id="wForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="wStaff">${staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select><label class="small mute">Bank holiday worked <input type="date" id="wDate"></label><label class="small mute">Days earned <select id="wDays"><option value="1">1 day</option><option value="0.5">Half day</option></select></label><input id="wNote" placeholder="Note (optional) e.g. site call-out" style="flex:1;min-width:160px"><button class="primary" type="submit">Record + give day in lieu</button></div><div class="small mute">Pick the engineer and the bank holiday they worked. The day in lieu is added to their balance in the table above; book it with "Day in lieu" ticked in the form below.</div></form>${work.length?`<div class="wrap" style="margin-top:10px"><table><tr><th>Engineer</th><th>Worked</th><th class="r">Days</th><th>Note</th><th>Recorded by</th><th></th></tr>${work.map(w=>`<tr><td><b>${esc(w.staff)}</b></td><td>${esc(uk(w.worked_date))}${bank[w.worked_date]?' <span class="small mute">'+esc(bank[w.worked_date])+'</span>':''}</td><td class="r">${num(w.days)}</td><td>${esc(w.note||'')}</td><td class="small mute">${esc(personName(w.recorded_by))}</td><td><button data-wdel="${esc(w.id)}">Delete</button></td></tr>`).join('')}</table></div>`:''}</details>`:'';
+
+  const formHtml=admin?`<details class="card"${holOpen==='h'?' open':''}><summary>Add a holiday for an engineer (approved straight away)</summary><form id="hForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="hStaff">${staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select><label class="small mute">From <input type="date" id="hFrom"></label><label class="small mute">To <input type="date" id="hTo"></label><label class="small"><input type="checkbox" id="hHalf"> Half day</label><label class="small" title="Takes a day earned by working a bank holiday instead of using the 25"><input type="checkbox" id="hLieu"> Day in lieu</label><input id="hNote" placeholder="Note (optional)" style="flex:1;min-width:160px"><button class="primary" type="submit">Add holiday</button></div><div id="hPrevTxt" class="small mute"></div></form></details>`:'';
 
   $('v-hols').innerHTML=`<div class="bar"><button id="hPrev" aria-label="Previous month">◀</button><b>${esc(monthName)}</b><button id="hNext" aria-label="Next month">▶</button><button id="hNow">This month</button><span class="sp"></span><button id="hPrint">Print</button></div>
-  ${clashHtml}${pendHtml}${gridHtml}${upHtml}${allowHtml}${formHtml}${reqHtml}`;
+  ${clashHtml}${pendHtml}${gridHtml}${upHtml}${allowHtml}${workHtml}${formHtml}${reqHtml}`;
 
   const shift=n=>{ const d=parse(holMonth); d.setMonth(d.getMonth()+n); holMonth=iso(d); viewHols(); };
   $('hPrev').onclick=()=>shift(-1); $('hNext').onclick=()=>shift(1);
@@ -861,18 +875,33 @@ function viewHols(){
     catch(e){ holErr(e); }
   });
   if(admin){
-    const prev=()=>{ $('hPrevTxt').textContent=holPreview($('hStaff').value,$('hFrom').value,$('hTo').value||$('hFrom').value,$('hHalf').checked).text; };
-    ['hStaff','hFrom','hTo','hHalf'].forEach(id=>$(id).addEventListener('input',prev));
+    const prev=()=>{ $('hPrevTxt').textContent=holPreview($('hStaff').value,$('hFrom').value,$('hTo').value||$('hFrom').value,$('hHalf').checked,$('hLieu').checked).text; };
+    ['hStaff','hFrom','hTo','hHalf','hLieu'].forEach(id=>$(id).addEventListener('input',prev));
     $('hFrom').addEventListener('change',()=>{ if(!$('hTo').value||$('hTo').value<$('hFrom').value) $('hTo').value=$('hFrom').value; prev(); });
+    $('wForm').onsubmit=async e=>{
+      e.preventDefault();
+      const n=$('wStaff').value, dt=$('wDate').value;
+      if(!dt){ holErr(new Error('Pick the date they worked.')); return; }
+      if(!bank[dt]&&!confirm(uk(dt)+' is not on the bank holiday list. Record it anyway?')) return;
+      const btn=$('wForm').querySelector('button[type=submit]'); btn.disabled=true; holOpen='w';
+      try{ await api('/rest/v1/bank_holiday_work',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({staff:n,worked_date:dt,days:num($('wDays').value)||1,note:$('wNote').value.trim()||null})}); await load(); render(); }
+      catch(err){ holErr(err); btn.disabled=false; }
+    };
+    $('v-hols').querySelectorAll('button[data-wdel]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Delete this bank holiday record? The day in lieu will be removed from their balance.')) return;
+      b.disabled=true; holOpen='w';
+      try{ await api('/rest/v1/bank_holiday_work?id=eq.'+encodeURIComponent(b.dataset.wdel),{method:'DELETE',headers:{Prefer:'return=minimal'}}); await load(); render(); }
+      catch(err){ holErr(err); b.disabled=false; }
+    });
     $('hForm').onsubmit=async e=>{
       e.preventDefault();
-      const n=$('hStaff').value, s=$('hFrom').value, en=$('hTo').value||s, half=$('hHalf').checked;
+      const n=$('hStaff').value, s=$('hFrom').value, en=$('hTo').value||s, half=$('hHalf').checked, lieu=$('hLieu').checked;
       if(!s||en<s){ holErr(new Error('Pick a start date, and an end date that is not before it.')); return; }
       if(half&&s!==en){ holErr(new Error('A half day can only be a single day.')); return; }
-      const p=holPreview(n,s,en,half);
+      const p=holPreview(n,s,en,half,lieu);
       if((p.clash.length||p.over.length)&&!confirm(p.text+'\n\nAdd it anyway?')) return;
-      const btn=$('hForm').querySelector('button[type=submit]'); btn.disabled=true;
-      try{ await api('/rest/v1/holiday_requests',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({staff:n,start_date:s,end_date:en,half_day:half,note:$('hNote').value.trim()||null,status:'approved'})}); await load(); render(); }
+      const btn=$('hForm').querySelector('button[type=submit]'); btn.disabled=true; holOpen='h';
+      try{ await api('/rest/v1/holiday_requests',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({staff:n,start_date:s,end_date:en,half_day:half,lieu,note:$('hNote').value.trim()||null,status:'approved'})}); await load(); render(); }
       catch(err){ holErr(err); btn.disabled=false; }
     };
   }
@@ -971,21 +1000,44 @@ function viewSupplierPortals(){
 }
 
 // ---------- global command-room search ----------
+// Report PDFs are filed in the report-pdfs bucket as <Customer>/<Visit type>/<Customer>_<Crane>_<Visit type>_<date>.pdf (same rule as the customer portal)
+const pdfFolderCache = {};
+const pdfFolderName = s => String(s==null?'':s).replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,60) || 'Unnamed_customer';
+const pdfFileSafe = s => String(s==null?'':s).trim().replace(/[^a-z0-9]+/gi,'_');
+async function reportPdfPath(r){
+  const folder = pdfFolderName(r.customer)+'/'+(r.visit_type||'Service');
+  if(!pdfFolderCache[folder]){
+    const res = await api('/storage/v1/object/list/report-pdfs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefix:folder,limit:1000,offset:0})});
+    pdfFolderCache[folder] = (await res.json()).filter(o=>o&&o.id).map(o=>o.name);
+  }
+  const files = pdfFolderCache[folder], crane = pdfFileSafe(r.crane_no), base = pdfFileSafe(r.customer)+(crane?'_'+crane:''), date = r.report_date||'', vt = r.visit_type||'Service';
+  const f = vt==='LOLER' ? files.find(x=>x.startsWith(base+'_LOLER_')&&x.endsWith('_'+date+'.pdf')) : files.find(x=>x===`${base}_${vt}_${date}.pdf`);
+  return f ? folder+'/'+f : null;
+}
+async function reportPdfUrl(r){
+  let path = await reportPdfPath(r);
+  if(!path){ delete pdfFolderCache[pdfFolderName(r.customer)+'/'+(r.visit_type||'Service')]; path = await reportPdfPath(r); }
+  if(!path) throw new Error('No PDF has been filed for '+(r.report_no||'this report')+' ('+uk(r.report_date)+'). The record is there, but the engineer has not saved the PDF yet.');
+  const blob = await (await api('/storage/v1/object/authenticated/report-pdfs/'+path.split('/').map(encodeURIComponent).join('/'))).blob();
+  return URL.createObjectURL(blob);
+}
 function runGlobalSearch(){
   const input=$('globalSearch'), box=$('searchResults');
   if(!input||!box) return;
   const q=input.value.trim().toLowerCase();
   if(!q){box.classList.add('hide');box.innerHTML='';return;}
   const hits=[];
-  const has=v=>String(v==null?'':v).toLowerCase().includes(q);
+  const words=q.split(/\s+/).filter(Boolean);
+  const has=v=>{ const t=String(v==null?'':v).toLowerCase(); return words.every(w=>t.includes(w)); };
   D.jobs.forEach(j=>{
     const d=j.data||{};
     const hay=[d.job,j.id,d.customerName,d.customer,d.site,d.type,d.status,...(d.engineers||[])].join(' ');
     if(has(hay)) hits.push({type:'Job sheet',main:(d.job||j.id)+' · '+(d.customerName||d.customer||'Customer not set'),sub:[d.site,d.type,d.status].filter(Boolean).join(' · '),tab:'week',key:j.id,week:((d.time||[])[0]||{}).date||d.date||''});
   });
   D.reports.forEach(r=>{
-    const hay=[r.report_no,r.customer,r.crane_no,r.id_no,r.visit_type,r.engineer,r.site,r.report_date].join(' ');
-    if(has(hay)) hits.push({type:'Service / LOLER report',main:(r.report_no||'Report')+' · '+(r.customer||'Customer not set'),sub:[r.visit_type,r.crane_no?'Crane '+r.crane_no:'',r.site,uk(r.report_date)].filter(Boolean).join(' · '),tab:'due',key:r.id});
+    const kind=/loler/i.test(r.visit_type||'')?'LOLER':/insp/i.test(r.visit_type||'')?'Inspection':'Service';
+    const hay=[r.report_no,r.customer,r.crane_no,r.id_no,r.visit_type,kind,'report',r.engineer,r.site,r.report_date,uk(r.report_date),r.next_due,uk(r.next_due)].join(' ');
+    if(has(hay)) hits.push({type:kind+' report',main:(r.report_no||'Report')+' · '+(r.customer||'Customer not set'),sub:[r.visit_type,r.crane_no?'Crane '+r.crane_no:'',r.id_no?'ID '+r.id_no:'',r.site,r.engineer,uk(r.report_date)].filter(Boolean).join(' · '),tab:'due',key:r.id,report:r});
   });
   D.pos.forEach(p=>{
     const hay=[p.po_number,p.engineer_name,p.site_ref,p.description,p.status,p.requested_by].join(' ');
@@ -995,18 +1047,105 @@ function runGlobalSearch(){
     const hay=[b.customer,b.site,b.contact,b.phone,b.description,b.job_type,b.engineer_name,b.status].join(' ');
     if(has(hay)) hits.push({type:'Booking',main:(b.customer||'Booking')+' · '+(b.site||''),sub:[b.status,b.job_type,b.engineer_name].filter(Boolean).join(' · '),tab:'bookings',key:b.id});
   });
-  const limited=hits.slice(0,30);
-  box.innerHTML=`<div class="result-head">${hits.length} matching record${hits.length===1?'':'s'}${hits.length>30?' · showing first 30':''}</div>`+
-    (limited.length?limited.map((h,i)=>`<div class="result" role="button" tabindex="0" data-hit="${i}"><div class="result-type">${esc(h.type)}</div><div><div class="result-main">${esc(h.main)}</div><div class="result-sub">${esc(h.sub)}</div></div><div class="result-go">Open section →</div></div>`).join(''):`<div class="empty-state">No matching records in the data currently loaded. Try a customer name, crane number, job number or PO reference.</div>`);
+  const MAXHITS=80; const limited=hits.slice(0,MAXHITS);
+  box.innerHTML=`<div class="result-head">${hits.length} matching record${hits.length===1?'':'s'}${hits.length>MAXHITS?' · showing first '+MAXHITS+' — type more of the name to narrow it':''}</div>`+
+    (limited.length?limited.map((h,i)=>`<div class="result" role="button" tabindex="0" data-hit="${i}"><div class="result-type">${esc(h.type)}</div><div><div class="result-main">${esc(h.main)}</div><div class="result-sub">${esc(h.sub)}</div></div><div class="result-go">${h.report?`<button type="button" data-pdf="${i}" style="font-weight:800">Open PDF</button>`:'Open section →'}</div></div>`).join(''):`<div class="empty-state">No matching records in the data currently loaded. Try a customer name, crane number, job number or PO reference.</div>`);
   box.classList.remove('hide');
+  box.querySelectorAll('button[data-pdf]').forEach(b=>b.onclick=async ev=>{
+    ev.stopPropagation(); const h=limited[+b.dataset.pdf], old=b.textContent; b.disabled=true; b.textContent='Opening…';
+    // open the tab straight away (inside the click) so pop-up blockers allow it
+    const w=window.open('','_blank');
+    try{ const url=await reportPdfUrl(h.report); if(w) w.location=url; else location.href=url; }
+    catch(e){ if(w) w.close(); $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); }
+    b.disabled=false; b.textContent=old;
+  });
   box.querySelectorAll('[data-hit]').forEach(el=>{
     const open=()=>{const h=limited[+el.dataset.hit];if(h.tab==='week'&&h.week)weekStart=monday(h.week);tab=h.tab;store.set('tab',tab);render();box.classList.add('hide');input.blur();};
     el.onclick=open;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};
   });
 }
 
+
+// ---------- engineers chat ----------
+// Same threads / messages the engineers use on their phones (tables threads + messages, photos in the chat-photos bucket).
+let chatThreads=[], chatOpen=null, chatMsgs=[], chatDraft='', chatTimer=null, chatNew=false, chatErr='';
+const chatMe = () => { const p=D.profile; const n=(p&&p.name)||''; return {id:(store.get('session')||{}).uid, name:n.charAt(0).toUpperCase()+n.slice(1)||'Office'}; };
+const chatTime = t => { const d=new Date(t), n=new Date(), hm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); return d.toDateString()===n.toDateString()?hm:d.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+' '+hm; };
+async function chatLoadThreads(){ chatThreads = await (await api('/rest/v1/threads?select=*&order=last_at.desc&limit=200')).json(); }
+async function chatLoadMsgs(){ if(!chatOpen) return; chatMsgs = await (await api('/rest/v1/messages?select=*&thread_id=eq.'+encodeURIComponent(chatOpen)+'&order=created_at.asc&limit=1000')).json(); }
+const chatPhotoCache = {};
+async function chatPhoto(path){ if(chatPhotoCache[path]) return chatPhotoCache[path]; const b=await (await api('/storage/v1/object/authenticated/chat-photos/'+path.split('/').map(encodeURIComponent).join('/'))).blob(); return chatPhotoCache[path]=URL.createObjectURL(b); }
+function chatMsgHtml(){
+  const me=chatMe().id;
+  return chatMsgs.length?chatMsgs.map(m=>`<div style="display:flex;${m.author_id===me?'justify-content:flex-end':''};margin:6px 0"><div style="max-width:min(560px,86%);padding:8px 12px;border-radius:12px;background:${m.author_id===me?'var(--accent)':'var(--bg)'};border:1px solid var(--line)"><div class="small" style="font-weight:800">${esc(m.author_name||'')} <span class="mute" style="font-weight:400">${esc(chatTime(m.created_at))}</span></div>${m.body?`<div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.body)}</div>`:''}${m.photo_path?`<img data-cphoto="${esc(m.photo_path)}" alt="Photo" style="max-width:100%;max-height:320px;margin-top:6px;border-radius:8px;cursor:zoom-in;background:var(--line);min-height:60px">`:''}</div></div>`).join(''):'<div class="mute">No messages yet.</div>';
+}
+function chatFillPhotos(root){
+  root.querySelectorAll('img[data-cphoto]').forEach(async im=>{ if(im.src&&im.dataset.done) return; im.dataset.done='1'; try{ im.src=await chatPhoto(im.dataset.cphoto); im.onclick=()=>window.open(im.src,'_blank'); }catch(e){ im.alt='Photo could not be loaded'; } });
+}
+async function chatRefreshMsgs(){
+  if(tab!=='chat'||!chatOpen) return;
+  try{
+    const before=chatMsgs.length; await chatLoadMsgs(); const box=$('chatMsgs'); if(!box) return;
+    if(chatMsgs.length!==before){ const atEnd=box.scrollHeight-box.scrollTop-box.clientHeight<80; box.innerHTML=chatMsgHtml(); chatFillPhotos(box); if(atEnd) box.scrollTop=box.scrollHeight; }
+  }catch(e){}
+}
+async function viewChat(){
+  const v=$('v-chat');
+  clearInterval(chatTimer); chatTimer=setInterval(()=>{ if(tab!=='chat'||document.hidden){ if(tab!=='chat') clearInterval(chatTimer); return; } chatOpen?chatRefreshMsgs():chatLoadThreads().then(()=>{ if(tab==='chat'&&!chatOpen&&!chatNew&&!document.activeElement.closest?.('#v-chat')) viewChat(); }).catch(()=>{}); },15000);
+  try{ await chatLoadThreads(); if(chatOpen) await chatLoadMsgs(); }catch(e){ v.innerHTML='<div class="err">Could not load the chat: '+esc(e.message)+'</div>'; return; }
+  const admin=!!(D.profile&&D.profile.role==='admin'), me=chatMe();
+  const th=chatOpen&&chatThreads.find(t=>t.id===chatOpen);
+  if(chatOpen&&!th){ chatOpen=null; }
+  if(!chatOpen){
+    v.innerHTML=`${chatErr?`<div class="err">${esc(chatErr)}</div>`:''}<div class="bar"><b>Engineers chat</b><span class="mute small">${chatThreads.length} conversation${chatThreads.length===1?'':'s'}</span><span class="sp"></span><button class="primary" id="cNew">New conversation</button></div>
+    ${chatNew?`<form id="cNewForm" class="card"><h2>New conversation</h2><div class="bar" style="box-shadow:none"><input id="cTitle" placeholder="What is it about? e.g. Top limit fault" style="flex:2;min-width:200px" required><input id="cTag" placeholder="Crane / site (optional)" style="flex:1;min-width:140px"><input id="cFirst" placeholder="First message (optional)" style="flex:3;min-width:200px"><button class="primary" type="submit">Start</button> <button type="button" id="cCancel">Cancel</button></div></form>`:''}
+    <div class="card">${chatThreads.length?chatThreads.map(t=>`<div class="result" role="button" tabindex="0" data-th="${esc(t.id)}" style="display:block;padding:11px 4px;border-top:1px solid var(--line);cursor:pointer;${t.closed?'opacity:.6':''}"><div><b>${esc(t.title)}</b> ${t.tag?`<span class="pill amber">${esc(t.tag)}</span>`:''} ${t.closed?'<span class="pill grey">CLOSED</span>':''}</div><div class="small mute">${esc(t.last_by_name||'')}${t.last_text?': '+esc(String(t.last_text).slice(0,120)):''} · ${esc(chatTime(t.last_at||t.created_at))}</div></div>`).join(''):'<span class="mute">No conversations yet. Start one with “New conversation”.</span>'}</div>`;
+    chatErr='';
+    $('cNew').onclick=()=>{ chatNew=true; viewChat(); };
+    if(chatNew){
+      $('cCancel').onclick=()=>{ chatNew=false; viewChat(); };
+      $('cNewForm').onsubmit=async e=>{
+        e.preventDefault(); const btn=e.target.querySelector('button[type=submit]'); btn.disabled=true;
+        try{
+          const r=await (await api('/rest/v1/threads',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({title:$('cTitle').value.trim(),tag:$('cTag').value.trim()||null,created_by:me.id,created_by_name:me.name})})).json();
+          const id=r[0].id, first=$('cFirst').value.trim();
+          if(first) await api('/rest/v1/messages',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({thread_id:id,body:first,author_id:me.id,author_name:me.name})});
+          chatNew=false; chatOpen=id; viewChat();
+        }catch(err){ chatErr='Could not start the conversation: '+err.message; btn.disabled=false; viewChat(); }
+      };
+    }
+    v.querySelectorAll('[data-th]').forEach(el=>{ const go=()=>{ chatOpen=el.dataset.th; chatDraft=''; viewChat(); }; el.onclick=go; el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(); } }; });
+    return;
+  }
+  v.innerHTML=`${chatErr?`<div class="err">${esc(chatErr)}</div>`:''}<div class="bar"><button id="cBack">◀ All conversations</button><b>${esc(th.title)}</b>${th.tag?` <span class="pill amber">${esc(th.tag)}</span>`:''}${th.closed?' <span class="pill grey">CLOSED</span>':''}<span class="sp"></span><button id="cClose">${th.closed?'Reopen':'Close conversation'}</button>${admin||th.created_by===me.id?'<button id="cDel">Delete</button>':''}</div>
+  <div class="card"><div id="chatMsgs" style="max-height:55vh;overflow:auto;padding:4px">${chatMsgHtml()}</div>
+  <form id="cForm" style="margin-top:12px"><div class="bar" style="box-shadow:none;margin:0"><textarea id="cText" rows="2" placeholder="Type a message…" style="flex:1;min-width:200px">${esc(chatDraft)}</textarea><label class="small mute" style="cursor:pointer">📷 Photo <input type="file" id="cFile" accept="image/*" style="display:none"></label><span id="cFileName" class="small mute"></span><button class="primary" type="submit">Send</button></div></form></div>`;
+  chatErr='';
+  const box=$('chatMsgs'); box.scrollTop=box.scrollHeight; chatFillPhotos(box);
+  $('cBack').onclick=()=>{ chatOpen=null; chatDraft=''; viewChat(); };
+  $('cText').oninput=e=>{ chatDraft=e.target.value; };
+  $('cText').onkeydown=e=>{ if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){ e.preventDefault(); $('cForm').requestSubmit(); } };
+  $('cFile').onchange=e=>{ $('cFileName').textContent=e.target.files[0]?e.target.files[0].name:''; };
+  $('cClose').onclick=async()=>{ try{ await api('/rest/v1/threads?id=eq.'+encodeURIComponent(th.id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({closed:!th.closed})}); viewChat(); }catch(e){ chatErr=e.message; viewChat(); } };
+  if($('cDel')) $('cDel').onclick=async()=>{ if(!confirm('Delete this whole conversation and all its messages?')) return; try{ await api('/rest/v1/threads?id=eq.'+encodeURIComponent(th.id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); chatOpen=null; viewChat(); }catch(e){ chatErr='Could not delete: '+e.message; viewChat(); } };
+  $('cForm').onsubmit=async e=>{
+    e.preventDefault(); const text=$('cText').value.trim(), file=$('cFile').files[0];
+    if(!text&&!file) return;
+    const btn=e.target.querySelector('button[type=submit]'); btn.disabled=true; btn.textContent='Sending…';
+    try{
+      let photo=null;
+      if(file){
+        photo=th.id+'/'+(crypto.randomUUID?crypto.randomUUID():String(Date.now()))+'.jpg';
+        await api('/storage/v1/object/chat-photos/'+photo.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:{'Content-Type':file.type||'image/jpeg','x-upsert':'false'},body:file});
+      }
+      await api('/rest/v1/messages',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({thread_id:th.id,body:text||null,photo_path:photo,author_id:me.id,author_name:me.name})});
+      chatDraft=''; viewChat();
+    }catch(err){ chatErr='Message not sent: '+err.message; chatDraft=text; viewChat(); }
+  };
+}
+
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['portals','Customer portals']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['portals','Customer portals'],['chat','Engineers chat']];
 function render(){
   if(tab==='portals'&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
@@ -1014,7 +1153,7 @@ function render(){
   $('tabs').innerHTML=TABS.filter(([k])=>k!=='portals'||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
