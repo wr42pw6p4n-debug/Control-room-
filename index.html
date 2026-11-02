@@ -261,12 +261,13 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-02.3';
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -287,19 +288,19 @@ async function load(){
     getAll('bank_holiday_work','select=*&order=worked_date.desc').catch(()=>[]),
     getAll('fleet_checks','select=*&order=due_date.asc').catch(()=>[]),
     getAll('visit_requests','select=*&order=created_at.desc').catch(()=>[]),
-    getAll('customer_pins','select=name_key,pin').catch(()=>[])
+    getAll('customer_pins','select=name_key,pin').catch(()=>[]),
+    getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.portals = portals; D.fleet = fleet; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
+  D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
   D.custs = (prof[0]&&prof[0].role==='admin')?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
-  D.poAdmin = await api('/rest/v1/rpc/po_is_admin',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json()).then(v=>v===true).catch(()=>false);
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
   if(D.jobsBlocked) $('msg').innerHTML += '<div class="note">This login can\'t see job sheets. Add the office user to the Job Manager members list in Supabase (table <b>js_members</b>).</div>';
-  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD;
 }
 
 // ---------- engineer names (Job Manager uses "Dave" and "Dave Boler" for the same person) ----------
@@ -357,9 +358,12 @@ function repairsList(){
     vs.forEach(r=>{ ((r.data&&r.data.items)||[]).forEach(it=>{ if(it&&it.label&&it.status) latest.set(slug(it.group)+'__'+slug(it.label),{r,it}); }); });
     latest.forEach(x=>{
       if(x.it.status!=='URGENT' && x.it.status!=='ATTN') return;
-      const key=((x.r.data&&x.r.data.reportNo)||x.r.report_no||x.r.id)+'|'+slug(x.it.group)+'__'+slug(x.it.label);
-      const comp=D.comps[key];
-      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp};
+      // The engineers' app files a completion under the report number OR the report id, sometimes with an "imp_" prefix (imported reports), so accept any of those.
+      const tail='|'+slug(x.it.group)+'__'+slug(x.it.label);
+      const bases=[x.r.data&&x.r.data.reportNo, x.r.report_no, x.r.id].filter(Boolean).map(String);
+      const hits=bases.flatMap(bs=>[bs,'imp_'+bs,bs.replace(/^imp_/,'')]).map(bs=>D.comps[bs+tail]).filter(Boolean).sort((p,q)=>String(q.done_date||'').localeCompare(String(p.done_date||'')));
+      const comp=hits[0];
+      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp,key:((x.r.data&&x.r.data.reportNo)||x.r.report_no||x.r.id)+tail};
       if(comp){ if((comp.done_date||'')>=cutoff) done.push(item); }
       else if(!(x.it.work&&String(x.it.work).trim())) open.push(item);
     });
@@ -504,6 +508,12 @@ function bookingText(b){
     (b.job_type||'')+(b.wanted_date?' - wanted '+uk(b.wanted_date):''), b.description].filter(Boolean).join('\n');
 }
 async function issueBooking(b, engId){
+  // people without their own login (Jordan, Ashleigh, Jono, Ricky) are chosen by name; the job goes out under the shared staff login and is sent by Text
+  if(String(engId||'').startsWith('name:')){
+    const nm=engId.slice(5), shared=D.people.find(x=>x.name==='keyengineeringstaff');
+    await patchBooking(b.id,{engineer_id:shared?shared.id:null,engineer_name:nm,status:'issued',issued_at:new Date().toISOString()});
+    return `Issued to ${nm}. They don't have their own login, so press Text on the booking to send it to their phone.`;
+  }
   const person=D.people.find(x=>x.id===engId);
   if(!person) throw new Error('Choose an engineer first');
   await patchBooking(b.id,{engineer_id:engId,engineer_name:cap(person.name),status:'issued',issued_at:new Date().toISOString()});
@@ -515,17 +525,18 @@ async function issueBooking(b, engId){
   return note;
 }
 async function textEngineer(b){
-  let num=D.phones[b.engineer_id];
+  const sp=D.staffPhones.find(x=>x.name===b.engineer_name);
+  let num=sp?sp.phone:D.phones[b.engineer_id];
   if(!num){
     num=(window.prompt('Mobile number for '+(b.engineer_name||'this engineer')+':')||'').replace(/[^0-9+]/g,'');
     if(!num) return;
-    await api('/rest/v1/engineer_phones?on_conflict=user_id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:b.engineer_id,phone:num})});
-    D.phones[b.engineer_id]=num;
+    if(sp){ await api('/rest/v1/staff_phones?on_conflict=name',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({name:sp.name,phone:num,updated_at:new Date().toISOString()})}); sp.phone=num; }
+    else { await api('/rest/v1/engineer_phones?on_conflict=user_id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:b.engineer_id,phone:num})}); D.phones[b.engineer_id]=num; }
   }
   window.location.href='sms:'+num+'?&body='+encodeURIComponent(bookingText(b));
 }
 function viewBookings(){
-  const people=D.people, opt=(sel)=>people.map(x=>`<option value="${esc(x.id)}" ${x.id===sel?'selected':''}>${esc(cap(x.name))}</option>`).join('');
+  const people=D.people, opt=(sel,nm)=>people.filter(x=>x.name!=='keyengineeringstaff').map(x=>`<option value="${esc(x.id)}" ${x.id===sel&&!(nm&&D.staffPhones.some(s=>s.name===nm))?'selected':''}>${esc(cap(x.name))}</option>`).join('')+D.staffPhones.map(x=>`<option value="${esc('name:'+x.name)}" ${nm===x.name?'selected':''}>${esc(x.name)}</option>`).join('');
   const open=D.bookings.filter(b=>b.status==='booked');
   const out=D.bookings.filter(b=>b.status==='issued'||b.status==='accepted');
   const cutoff=addDays(todayIso(),-7);
@@ -536,7 +547,7 @@ function viewBookings(){
     <div class="small" style="margin:6px 0">${esc(b.description)}</div>
     <div class="mute small">${b.contact||b.phone?'Contact: '+esc([b.contact,b.phone].filter(Boolean).join(' · '))+' · ':''}Booked ${uk((b.created_at||'').slice(0,10))}${b.engineer_name?' · Engineer: '+esc(b.engineer_name):''}${b.accepted_at?' · Accepted '+uk(b.accepted_at.slice(0,10)):''}</div>
     <div class="bar" style="margin:10px 0 0;padding:8px;box-shadow:none">
-    ${mode==='open'?`<select data-eng="${esc(b.id)}"><option value="">Choose engineer…</option>${opt(b.engineer_id)}</select><button class="primary" data-act="issue" data-id="${esc(b.id)}">Issue</button>`:''}
+    ${mode==='open'?`<select data-eng="${esc(b.id)}"><option value="">Choose engineer…</option>${opt(b.engineer_id,b.engineer_name)}</select><button class="primary" data-act="issue" data-id="${esc(b.id)}">Issue</button>`:''}
     ${mode==='out'?`<button data-act="text" data-id="${esc(b.id)}">Text</button><button data-act="notify" data-id="${esc(b.id)}">Notify again</button><button data-act="done" data-id="${esc(b.id)}">Mark done</button>`:''}
     ${mode==='done'?`<button data-act="text" data-id="${esc(b.id)}">Text</button>`:''}
     <span class="sp"></span>${mode!=='done'?`<button data-act="cancel" data-id="${esc(b.id)}">Cancel booking</button>`:''}</div></div>`;
@@ -556,7 +567,7 @@ function viewBookings(){
     <div class="card"><h2>Waiting to be issued <span class="mute small">${open.length}</span></h2>${open.length?open.map(b=>card(b,'open')).join(''):'<span class="mute">No bookings waiting.</span>'}</div>
     <div class="card"><h2>Out with engineers <span class="mute small">${out.length}</span></h2>${out.length?out.map(b=>card(b,'out')).join(''):'<span class="mute">Nothing issued at the moment.</span>'}</div>
     <div class="card"><h2>Done in the last 7 days <span class="mute small">${done.length}</span></h2>${done.length?done.map(b=>card(b,'done')).join(''):'<span class="mute">None.</span>'}</div>
-    <div class="card"><details><summary>Engineer mobile numbers (for the Text button)</summary><div class="wrap" style="margin-top:10px"><table>${people.map(x=>`<tr><td>${esc(cap(x.name))}</td><td><input class="fld" data-phone="${esc(x.id)}" type="tel" value="${esc(D.phones[x.id]||'')}" placeholder="07…"></td></tr>`).join('')}</table></div></details></div>`;
+    <div class="card"><details><summary>Engineer mobile numbers (for the Text button)</summary><div class="wrap" style="margin-top:10px"><table>${people.map(x=>`<tr><td>${esc(x.name==='keyengineeringstaff'?'Key Engineering staff':cap(x.name))}</td><td><input class="fld" data-phone="${esc(x.id)}" type="tel" value="${esc(D.phones[x.id]||'')}" placeholder="07…"></td></tr>`).join('')}${D.staffPhones.map(x=>`<tr><td>${esc(x.name)}</td><td><input class="fld" data-sphone="${esc(x.name)}" type="tel" value="${esc(x.phone||'')}" placeholder="07…"></td></tr>`).join('')}</table></div></details></div>`;
   document.querySelectorAll('#v-bookings .fld').forEach(el=>{el.style.cssText+=';width:100%;margin-top:3px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit;box-sizing:border-box';});
   const say=(m,err)=>{$('msg').innerHTML=`<div class="${err?'err':'note'}">${esc(m)}</div>`;window.scrollTo({top:0,behavior:'smooth'});};
   let wantIssue=false;
@@ -583,11 +594,17 @@ function viewBookings(){
       const act=btn.dataset.act;
       if(act==='issue'){ const eng=document.querySelector(`select[data-eng="${b.id}"]`).value; const msg=await issueBooking(b,eng); await load(); render(); say(msg,false); return; }
       if(act==='text'){ await textEngineer(b); btn.disabled=false; render(); return; }
+      if(act==='notify'&&D.staffPhones.some(x=>x.name===b.engineer_name)){ say(b.engineer_name+' has no login of their own, so use the Text button.',false); btn.disabled=false; return; }
       if(act==='notify'){ const r=await notifyEngineer(b.id); say(r.sent?'Notification sent.':r.devices?'The notification could not be delivered — use the Text button.':'That engineer has not switched on phone notifications yet — use the Text button.',!r.sent); btn.disabled=false; return; }
       if(act==='done'){ await patchBooking(b.id,{status:'done',done_at:new Date().toISOString()}); }
       if(act==='cancel'){ if(!confirm('Cancel this booking?')){btn.disabled=false;return;} await patchBooking(b.id,{status:'cancelled'}); }
       await load(); render();
     }catch(err){ say(err.message,true); btn.disabled=false; }
+  });
+  $('v-bookings').querySelectorAll('input[data-sphone]').forEach(i=>i.onchange=async()=>{
+    const num=i.value.replace(/[^0-9+]/g,'');
+    try{ await api('/rest/v1/staff_phones?on_conflict=name',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({name:i.dataset.sphone,phone:num,updated_at:new Date().toISOString()})}); const r=D.staffPhones.find(x=>x.name===i.dataset.sphone); if(r) r.phone=num; i.value=num; say('Number saved.',false); }
+    catch(err){ say('Could not save number: '+err.message,true); }
   });
   $('v-bookings').querySelectorAll('input[data-phone]').forEach(i=>i.onchange=async()=>{
     const num=i.value.replace(/[^0-9+]/g,'');
@@ -680,57 +697,27 @@ function viewDue(){
 
 function viewRepairs(){
   const {open,done}=repairsList();
-  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td></tr>`;
-  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button></div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
-  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
+  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td>${x.comp?`<span class="small mute">${esc(x.comp.note||'')}</span>`:`<button data-mr="${esc(x.key)}" title="Record this as repaired">Mark repaired</button>`}</td></tr>`;
+  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button></div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
+  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th>Note</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
   $('rCsv').onclick=()=>csvDownload('repairs_'+todayIso()+'.csv',['Priority','Customer','Site','Crane','Group','Item','Note','Engineer','Reported'],open.map(x=>[x.it.status==='URGENT'?'Urgent':'Req attn',x.r.customer,x.r.site,x.r.crane_no,x.it.group,x.it.label,x.it.note,x.eng,uk(x.r.report_date)]));
   $('rPrint').onclick=()=>window.print();
+  $('v-repairs').querySelectorAll('button[data-mr]').forEach(b=>b.onclick=async()=>{
+    const note=window.prompt('Optional note about the repair (or leave blank):'); if(note===null) return;
+    b.disabled=true;
+    try{ await api('/rest/v1/completions?on_conflict=key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:b.dataset.mr,done_date:todayIso(),note:note.trim(),done_by:(store.get('session')||{}).uid,updated_at:new Date().toISOString()})}); await load(); render(); }
+    catch(e){ $('msg').innerHTML='<div class="err">Could not record the repair: '+esc(e.message)+'</div>'; b.disabled=false; }
+  });
 }
 
-const PO_STEPS=[['to_order','To order'],['ordered','Ordered'],['awaiting_delivery','Awaiting delivery'],['received','Received'],['awaiting_fitting','Awaiting fitting'],['fitted','Fitted / done']];
-const PO_STEP_LABEL=Object.fromEntries(PO_STEPS);
-let poFilter='open';
 function viewPo(){
-  const admin=!!D.poAdmin;
-  const rank=s=>PO_STEPS.findIndex(x=>x[0]===s);
-  const pending=D.pos.filter(p=>p.status==='pending').slice().reverse();
-  const approved=D.pos.filter(p=>p.status==='approved');
-  let list=approved;
-  if(poFilter==='open') list=approved.filter(p=>p.order_status!=='fitted');
-  if(poFilter==='done') list=approved.filter(p=>p.order_status==='fitted');
-  list=list.slice().sort((a,b)=>((a.urgency==='urgent'?0:1)-(b.urgency==='urgent'?0:1))||(rank(a.order_status)-rank(b.order_status))||(new Date(a.decided_at||0)-new Date(b.decided_at||0)));
-  const extra=p=>[p.urgency==='urgent'?'<span class="pill red">URGENT</span>':'',p.quantity?'Qty '+esc(p.quantity):'',p.needed_by?'Needed by '+uk(p.needed_by):''].filter(Boolean).join(' · ');
-  const pendingHtml=pending.length?`<table><tr><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
-    ${pending.map(p=>`<tr><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${admin?`<button class="primary" data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing waiting for approval.</span>';
-  const ordersHtml=list.length?`<table><tr><th>PO</th><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Order progress</th><th>Note</th></tr>
-    ${list.map(p=>`<tr><td><b>${esc(p.po_number||'')}</b><div class="mute small">${uk((p.decided_at||'').slice(0,10))}</div></td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td>
-      <td>${admin?`<select data-os="${esc(p.id)}">${PO_STEPS.map(([k,l])=>`<option value="${k}"${p.order_status===k?' selected':''}>${l}</option>`).join('')}</select>`:`<span class="pill ${p.order_status==='fitted'?'green':'amber'}">${esc(PO_STEP_LABEL[p.order_status]||p.order_status||'')}</span>`}</td>
-      <td>${esc(p.order_note||'')}${admin?` <button data-on="${esc(p.id)}">${p.order_note?'Edit':'Add note'}</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing here.</span>';
-  $('v-po').innerHTML=`<div class="card"><h2><span>Waiting for approval <span class="mute small">${pending.length}</span></span></h2><div class="wrap">${pendingHtml}</div></div>
-  <div class="card"><h2><span>Orders to process <span class="mute small">${list.length}</span></span>
-    <span><button data-pf="open"${poFilter==='open'?' class="primary"':''}>Open</button> <button data-pf="done"${poFilter==='done'?' class="primary"':''}>Done</button> <button data-pf="all"${poFilter==='all'?' class="primary"':''}>All</button></span></h2>
-    <div class="wrap">${ordersHtml}</div></div>
-  ${admin?'':'<div class="note">This login can view requests but not approve or update them.</div>'}`;
-  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; };
-  const rpc=(fn,body)=>api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  $('v-po').querySelectorAll('button[data-pf]').forEach(b=>b.onclick=()=>{ poFilter=b.dataset.pf; viewPo(); });
+  const admin = D.pos.some(p=>p.requested_by!==(store.get('session')||{}).uid);
+  $('v-po').innerHTML=`<div class="card"><h2>Purchase orders <span class="mute small">${D.pos.length}</span></h2><div class="wrap">${D.pos.length?`<table><tr><th>Status</th><th>PO</th><th>Engineer</th><th>Site / ref</th><th>Description</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
+  ${D.pos.map(p=>`<tr><td><span class="pill ${p.status==='approved'?'green':p.status==='rejected'?'red':'amber'}">${esc(p.status)}</span></td><td>${esc(p.po_number||'')}</td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.description)}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${p.status==='pending'&&admin?`<button data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">No purchase order requests.</span>'}</div></div>`;
   $('v-po').querySelectorAll('button[data-a]').forEach(b=>b.onclick=async()=>{
-    if(b.dataset.a==='reject_po' && !confirm('Reject this request?')) return;
     b.disabled=true;
-    try{ await rpc(b.dataset.a,{request_id:b.dataset.id}); await refresh(); }
-    catch(e){ fail(e); b.disabled=false; }
-  });
-  $('v-po').querySelectorAll('select[data-os]').forEach(sel=>sel.onchange=async()=>{
-    sel.disabled=true;
-    try{ await rpc('set_order_status',{request_id:sel.dataset.os,new_status:sel.value}); await refresh(); }
-    catch(e){ fail(e); sel.disabled=false; }
-  });
-  $('v-po').querySelectorAll('button[data-on]').forEach(b=>b.onclick=async()=>{
-    const r=D.pos.find(x=>x.id===b.dataset.on);
-    const v=prompt('Note (e.g. supplier order ref, due date)',(r&&r.order_note)||'');
-    if(v===null) return;
-    try{ await rpc('set_order_note',{request_id:b.dataset.on,new_note:v}); await refresh(); }
-    catch(e){ fail(e); }
+    try{ await api('/rest/v1/rpc/'+b.dataset.a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:b.dataset.id})}); await refresh(); }
+    catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
   });
 }
 
@@ -1099,7 +1086,7 @@ function runGlobalSearch(){
     if(has(hay)) hits.push({type:kind+' report',main:(r.report_no||'Report')+' · '+(r.customer||'Customer not set'),sub:[r.visit_type,r.crane_no?'Crane '+r.crane_no:'',r.id_no?'ID '+r.id_no:'',r.site,r.engineer,uk(r.report_date)].filter(Boolean).join(' · '),tab:'due',key:r.id,report:r});
   });
   D.pos.forEach(p=>{
-    const hay=[p.po_number,p.engineer_name,p.site_ref,p.supplier,p.description,p.status,p.order_status,p.order_note,p.requested_by].join(' ');
+    const hay=[p.po_number,p.engineer_name,p.site_ref,p.description,p.status,p.requested_by].join(' ');
     if(has(hay)) hits.push({type:'Purchase order',main:(p.po_number||'PO request')+' · '+(p.site_ref||p.engineer_name||'Request'),sub:[p.status,p.description].filter(Boolean).join(' · '),tab:'po',key:p.id});
   });
   D.bookings.forEach(b=>{
@@ -1242,7 +1229,7 @@ const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['
 function render(){
   if((tab==='portals'||tab==='visits')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending'||(p.status==='approved'&&p.order_status==='to_order')).length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
+  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
   $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='visits')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
