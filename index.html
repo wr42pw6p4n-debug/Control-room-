@@ -296,6 +296,7 @@ async function load(){
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
+  D.poAdmin = await api('/rest/v1/rpc/po_is_admin',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json()).then(v=>v===true).catch(()=>false);
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
   if(D.jobsBlocked) $('msg').innerHTML += '<div class="note">This login can\'t see job sheets. Add the office user to the Job Manager members list in Supabase (table <b>js_members</b>).</div>';
   $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
@@ -686,14 +687,50 @@ function viewRepairs(){
   $('rPrint').onclick=()=>window.print();
 }
 
+const PO_STEPS=[['to_order','To order'],['ordered','Ordered'],['awaiting_delivery','Awaiting delivery'],['received','Received'],['awaiting_fitting','Awaiting fitting'],['fitted','Fitted / done']];
+const PO_STEP_LABEL=Object.fromEntries(PO_STEPS);
+let poFilter='open';
 function viewPo(){
-  const admin = D.pos.some(p=>p.requested_by!==(store.get('session')||{}).uid);
-  $('v-po').innerHTML=`<div class="card"><h2>Purchase orders <span class="mute small">${D.pos.length}</span></h2><div class="wrap">${D.pos.length?`<table><tr><th>Status</th><th>PO</th><th>Engineer</th><th>Site / ref</th><th>Description</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
-  ${D.pos.map(p=>`<tr><td><span class="pill ${p.status==='approved'?'green':p.status==='rejected'?'red':'amber'}">${esc(p.status)}</span></td><td>${esc(p.po_number||'')}</td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.description)}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${p.status==='pending'&&admin?`<button data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">No purchase order requests.</span>'}</div></div>`;
+  const admin=!!D.poAdmin;
+  const rank=s=>PO_STEPS.findIndex(x=>x[0]===s);
+  const pending=D.pos.filter(p=>p.status==='pending').slice().reverse();
+  const approved=D.pos.filter(p=>p.status==='approved');
+  let list=approved;
+  if(poFilter==='open') list=approved.filter(p=>p.order_status!=='fitted');
+  if(poFilter==='done') list=approved.filter(p=>p.order_status==='fitted');
+  list=list.slice().sort((a,b)=>((a.urgency==='urgent'?0:1)-(b.urgency==='urgent'?0:1))||(rank(a.order_status)-rank(b.order_status))||(new Date(a.decided_at||0)-new Date(b.decided_at||0)));
+  const extra=p=>[p.urgency==='urgent'?'<span class="pill red">URGENT</span>':'',p.quantity?'Qty '+esc(p.quantity):'',p.needed_by?'Needed by '+uk(p.needed_by):''].filter(Boolean).join(' · ');
+  const pendingHtml=pending.length?`<table><tr><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
+    ${pending.map(p=>`<tr><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${admin?`<button class="primary" data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing waiting for approval.</span>';
+  const ordersHtml=list.length?`<table><tr><th>PO</th><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Order progress</th><th>Note</th></tr>
+    ${list.map(p=>`<tr><td><b>${esc(p.po_number||'')}</b><div class="mute small">${uk((p.decided_at||'').slice(0,10))}</div></td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td>
+      <td>${admin?`<select data-os="${esc(p.id)}">${PO_STEPS.map(([k,l])=>`<option value="${k}"${p.order_status===k?' selected':''}>${l}</option>`).join('')}</select>`:`<span class="pill ${p.order_status==='fitted'?'green':'amber'}">${esc(PO_STEP_LABEL[p.order_status]||p.order_status||'')}</span>`}</td>
+      <td>${esc(p.order_note||'')}${admin?` <button data-on="${esc(p.id)}">${p.order_note?'Edit':'Add note'}</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing here.</span>';
+  $('v-po').innerHTML=`<div class="card"><h2><span>Waiting for approval <span class="mute small">${pending.length}</span></span></h2><div class="wrap">${pendingHtml}</div></div>
+  <div class="card"><h2><span>Orders to process <span class="mute small">${list.length}</span></span>
+    <span><button data-pf="open"${poFilter==='open'?' class="primary"':''}>Open</button> <button data-pf="done"${poFilter==='done'?' class="primary"':''}>Done</button> <button data-pf="all"${poFilter==='all'?' class="primary"':''}>All</button></span></h2>
+    <div class="wrap">${ordersHtml}</div></div>
+  ${admin?'':'<div class="note">This login can view requests but not approve or update them.</div>'}`;
+  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; };
+  const rpc=(fn,body)=>api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  $('v-po').querySelectorAll('button[data-pf]').forEach(b=>b.onclick=()=>{ poFilter=b.dataset.pf; viewPo(); });
   $('v-po').querySelectorAll('button[data-a]').forEach(b=>b.onclick=async()=>{
+    if(b.dataset.a==='reject_po' && !confirm('Reject this request?')) return;
     b.disabled=true;
-    try{ await api('/rest/v1/rpc/'+b.dataset.a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:b.dataset.id})}); await refresh(); }
-    catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
+    try{ await rpc(b.dataset.a,{request_id:b.dataset.id}); await refresh(); }
+    catch(e){ fail(e); b.disabled=false; }
+  });
+  $('v-po').querySelectorAll('select[data-os]').forEach(sel=>sel.onchange=async()=>{
+    sel.disabled=true;
+    try{ await rpc('set_order_status',{request_id:sel.dataset.os,new_status:sel.value}); await refresh(); }
+    catch(e){ fail(e); sel.disabled=false; }
+  });
+  $('v-po').querySelectorAll('button[data-on]').forEach(b=>b.onclick=async()=>{
+    const r=D.pos.find(x=>x.id===b.dataset.on);
+    const v=prompt('Note (e.g. supplier order ref, due date)',(r&&r.order_note)||'');
+    if(v===null) return;
+    try{ await rpc('set_order_note',{request_id:b.dataset.on,new_note:v}); await refresh(); }
+    catch(e){ fail(e); }
   });
 }
 
@@ -1062,7 +1099,7 @@ function runGlobalSearch(){
     if(has(hay)) hits.push({type:kind+' report',main:(r.report_no||'Report')+' · '+(r.customer||'Customer not set'),sub:[r.visit_type,r.crane_no?'Crane '+r.crane_no:'',r.id_no?'ID '+r.id_no:'',r.site,r.engineer,uk(r.report_date)].filter(Boolean).join(' · '),tab:'due',key:r.id,report:r});
   });
   D.pos.forEach(p=>{
-    const hay=[p.po_number,p.engineer_name,p.site_ref,p.description,p.status,p.requested_by].join(' ');
+    const hay=[p.po_number,p.engineer_name,p.site_ref,p.supplier,p.description,p.status,p.order_status,p.order_note,p.requested_by].join(' ');
     if(has(hay)) hits.push({type:'Purchase order',main:(p.po_number||'PO request')+' · '+(p.site_ref||p.engineer_name||'Request'),sub:[p.status,p.description].filter(Boolean).join(' · '),tab:'po',key:p.id});
   });
   D.bookings.forEach(b=>{
@@ -1205,7 +1242,7 @@ const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['
 function render(){
   if((tab==='portals'||tab==='visits')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
+  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending'||(p.status==='approved'&&p.order_status==='to_order')).length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
   $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='visits')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
