@@ -202,6 +202,8 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-hols" class="hide"></section>
     <section id="v-portals" class="hide"></section>
     <section id="v-chat" class="hide"></section>
+    <section id="v-fleet" class="hide"></section>
+    <section id="v-visits" class="hide"></section>
   </main>
 </div>
 
@@ -259,12 +261,12 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -282,10 +284,15 @@ async function load(){
     getAll('holiday_approvers','select=user_id').catch(()=>[]),
     getAll('customer_portals','select=*&order=customer.asc').catch(()=>[]),
     getAll('customers','select=name_key,data,updated_at&order=name_key.asc').catch(()=>[]),
-    getAll('bank_holiday_work','select=*&order=worked_date.desc').catch(()=>[])
+    getAll('bank_holiday_work','select=*&order=worked_date.desc').catch(()=>[]),
+    getAll('fleet_checks','select=*&order=due_date.asc').catch(()=>[]),
+    getAll('visit_requests','select=*&order=created_at.desc').catch(()=>[]),
+    getAll('customer_pins','select=name_key,pin').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.portals = portals; D.custs = (prof[0]&&prof[0].role==='admin')?custs:[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
+  D.portals = portals; D.fleet = fleet; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
+  const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
+  D.custs = (prof[0]&&prof[0].role==='admin')?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
@@ -652,6 +659,18 @@ function viewDue(){
     <span class="mute small">${list.length} shown</span><span class="sp"></span><button id="dCsv" ${list.length?'':'disabled'}>Download CSV</button></div>
     <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th></tr>
     ${list.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.customer)}<div class="mute small">${esc(d.r.site||'')}</div></td><td>${esc(d.r.crane_no||'')}${d.r.id_no?` <span class="mute small">ID ${esc(d.r.id_no)}</span>`:''}</td><td>${esc(d.eng)}</td><td>${uk(d.r.report_date)}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing due in this window.</span>'}</div>`;
+  // chase drafts: one email per customer covering everything shown
+  const byCust=new Map(); list.forEach(d=>{ const k=String(d.r.customer||'').trim(); if(!byCust.has(k)) byCust.set(k,[]); byCust.get(k).push(d); });
+  const emailFor=name=>{ const c=D.custs.find(x=>String((x.data&&x.data.customer)||x.name_key).trim().toLowerCase()===name.toLowerCase()); return c&&c.data&&c.data.email?String(c.data.email).trim():''; };
+  const draft=(name,items)=>{ const over=items.filter(d=>d.days<0), soon=items.filter(d=>d.days>=0); const line=d=>`  - ${d.kind}: ${d.r.crane_no?'crane '+d.r.crane_no:'equipment'}${d.r.id_no?' (ID '+d.r.id_no+')':''}${d.r.site?' at '+d.r.site:''}, ${d.days<0?'was due ':'due '}${uk(d.iso)}`;
+    const body=`Dear ${name},\n\nOur records show the following ${over.length?'inspections / services are overdue or ':''}coming up for your equipment:\n\n${over.length?'Overdue:\n'+over.map(line).join('\n')+'\n\n':''}${soon.length?'Coming up:\n'+soon.map(line).join('\n')+'\n\n':''}Please let us know a convenient date and we will book an engineer in. You can also reply to this email or give us a call.\n\nKind regards,\nKey Engineering Chesterfield`;
+    return {subject:`Key Engineering: ${over.length?'overdue ':''}inspection / service reminder`,body}; };
+  const chase=[...byCust.entries()].sort((a,b)=>Math.min(...a[1].map(d=>d.days))-Math.min(...b[1].map(d=>d.days)));
+  if(chase.length){
+    $('v-due').insertAdjacentHTML('beforeend',`<div class="card"><h2>Chase customers <span class="mute small">${chase.length} customer${chase.length===1?'':'s'} · drafts, nothing is sent until you press send in your email</span></h2><div class="wrap"><table><tr><th>Customer</th><th>Items</th><th>Earliest</th><th></th></tr>${chase.map(([n,it],i)=>{ const em=emailFor(n); return `<tr><td><b>${esc(n)}</b>${em?`<div class="small mute">${esc(em)}</div>`:'<div class="small mute">no email on file</div>'}</td><td class="r">${it.length}</td><td>${pill(Math.min(...it.map(d=>d.days)))}</td><td style="white-space:nowrap"><button data-cm="${i}">Email draft</button> <button data-cc="${i}">Copy text</button></td></tr>`; }).join('')}</table></div></div>`);
+    $('v-due').querySelectorAll('button[data-cm]').forEach(b=>b.onclick=()=>{ const [n,it]=chase[+b.dataset.cm], d=draft(n,it); location.href='mailto:'+emailFor(n)+'?subject='+encodeURIComponent(d.subject)+'&body='+encodeURIComponent(d.body); });
+    $('v-due').querySelectorAll('button[data-cc]').forEach(b=>b.onclick=async()=>{ const [n,it]=chase[+b.dataset.cc], d=draft(n,it); await copyText(d.subject+'\n\n'+d.body); b.textContent='Copied ✓'; setTimeout(()=>{b.textContent='Copy text';},1500); });
+  }
   $('dCsv').onclick=()=>csvDownload('due_'+todayIso()+'.csv',['Due','Days','Type','Customer','Site','Crane','ID','Engineer','Last visit'],list.map(d=>[uk(d.iso),d.days,d.kind,d.r.customer,d.r.site,d.r.crane_no,d.r.id_no,d.eng,uk(d.r.report_date)]));
   $('dEng').onchange=e=>{dueEng=e.target.value;viewDue();};
   $('dKind').onchange=e=>{dueKind=e.target.value;viewDue();};
@@ -812,8 +831,11 @@ function holPreview(n,s,e,half,lieu){
 }
 
 let holOpen='';
+const notifyHoliday = async id => { try{ const t=await token(); await fetch(SB.url+'/functions/v1/push-send',{method:'POST',headers:{apikey:SB.key,Authorization:'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify({action:'holiday_decided',request_id:id})}); }catch(e){} };
 function viewHols(){
   const bank=holBank(), staff=holStaff(), t=todayIso(), admin=isAdmin();
+  const myUid=(store.get('session')||{}).uid, myName=String((D.profile&&D.profile.name)||'').trim().toLowerCase();
+  const ownReq=r=>r.requested_by===myUid||(myName&&String(r.staff).trim().toLowerCase()===myName);
   const first=holMonth, d0=parse(first); d0.setMonth(d0.getMonth()+1); d0.setDate(0); const last=iso(d0);
   const yr=+first.slice(0,4), sum=holSummary(), off=holOffByDay(first,last,bank);
   const clashDay=s=>new Set((off[s]||[]).map(x=>x.staff)).size>=HOL_CLASH_AT;
@@ -826,7 +848,7 @@ function viewHols(){
   // ---- alerts ----
   const clashHtml=sum.clashes.length?`<div class="err"><b>⚠ Holiday clashes in the next 90 days</b><br>${sum.clashes.map(c=>esc(fmtDay(c.start))+(c.end!==c.start?' to '+esc(fmtDay(c.end)):'')+': '+c.names.map(esc).join(', ')+(c.pending?' <span class="pill amber">includes a pending request</span>':'')).join('<br>')}<div class="small" style="margin-top:6px">Shown when ${HOL_CLASH_AT} or more people are off on the same working day.</div></div>`:'';
   const pend=D.hol.reqs.filter(r=>r.status==='pending');
-  const pendHtml=pend.length?`<div class="card"><h2>Waiting for approval <span class="mute small">${pend.length}</span></h2><div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th></th></tr>${pend.map(r=>{ const p=holPreview(r.staff,r.start_date,r.end_date,r.half_day); return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}${p.clash.length?`<div class="small" style="color:var(--red)">Clashes with ${esc(p.clash.join(', '))}</div>`:''}${p.over.length?`<div class="small" style="color:var(--red)">Over allowance</div>`:''}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td>${admin?`<button class="primary" data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button>`:`<span class="mute small">Awaiting ${D.hol.approvers.map(personName).filter(Boolean).map(esc).join(', ')||'the office'}</span>`}</td></tr>`; }).join('')}</table></div></div>`:'';
+  const pendHtml=pend.length?`<div class="card"><h2>Waiting for approval <span class="mute small">${pend.length}</span></h2><div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th></th></tr>${pend.map(r=>{ const p=holPreview(r.staff,r.start_date,r.end_date,r.half_day,r.lieu); return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}${p.clash.length?`<div class="small" style="color:var(--red)">Clashes with ${esc(p.clash.join(', '))}</div>`:''}${p.over.length?`<div class="small" style="color:var(--red)">Over allowance</div>`:''}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td>${admin&&ownReq(r)?`<span class="mute small">Needs another approver (you can't approve your own)</span>`:admin?`<button class="primary" data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button>`:`<span class="mute small">Awaiting ${D.hol.approvers.map(personName).filter(Boolean).map(esc).join(', ')||'the office'}</span>`}</td></tr>`; }).join('')}</table></div></div>`:'';
   const up=holLive().filter(r=>r.end_date>=t&&r.start_date<=addDays(t,30)).sort((a,b)=>a.start_date.localeCompare(b.start_date));
   const upHtml=`<div class="card"><h2>Off now and coming up <span class="mute small">next 30 days</span></h2>${sum.offToday.length?`<p style="margin:0 0 10px"><b>Off today:</b> ${sum.offToday.map(esc).join(', ')}</p>`:''}${up.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th></th></tr>${up.map(r=>{ const d=inDays(r.start_date), soon=d>=0&&d<=14; return `<tr class="${soon?'hsoon':''}"><td>${d<=0?'<span class="pill red">OFF NOW</span>':pill(d)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${r.status==='pending'?'<span class="pill amber">PENDING</span>':''}</td></tr>`; }).join('')}</table></div>`:'<span class="mute">Nobody is booked off in the next 30 days.</span>'}</div>`;
 
@@ -848,7 +870,7 @@ function viewHols(){
 
   // ---- all requests this year ----
   const yearReqs=D.hol.reqs.filter(r=>r.start_date.slice(0,4)===String(yr)||r.end_date.slice(0,4)===String(yr)).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||a.start_date.localeCompare(b.start_date));
-  const reqHtml=`<div class="card"><h2>All ${yr} requests <span class="mute small">${yearReqs.length}</span></h2>${yearReqs.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th>Requested by</th>${admin?'<th></th>':''}</tr>${yearReqs.map(r=>`<tr style="${r.status==='rejected'||r.status==='cancelled'?'opacity:.55':''}"><td>${statusPill(r)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td class="small mute">${esc(personName(r.requested_by))}${r.decided_by?'<br>decided by '+esc(personName(r.decided_by)):''}</td>${admin?`<td>${r.status==='pending'?`<button data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button> `:''}<button data-ha="delete" data-id="${esc(r.id)}">Delete</button></td>`:''}</tr>`).join('')}</table></div>`:'<span class="mute">No holiday requests for this year yet.</span>'}</div>`;
+  const reqHtml=`<div class="card"><h2>All ${yr} requests <span class="mute small">${yearReqs.length}</span></h2>${yearReqs.length?`<div class="wrap"><table><tr><th></th><th>Engineer</th><th>Dates</th><th class="r">Days</th><th>Note</th><th>Requested by</th>${admin?'<th></th>':''}</tr>${yearReqs.map(r=>`<tr style="${r.status==='rejected'||r.status==='cancelled'?'opacity:.55':''}"><td>${statusPill(r)}</td><td><b>${esc(r.staff)}</b></td><td>${esc(range(r))}</td><td class="r">${holDayCount(r,bank)}</td><td>${esc(r.note||'')}</td><td class="small mute">${esc(personName(r.requested_by))}${r.decided_by?'<br>decided by '+esc(personName(r.decided_by)):''}</td>${admin?`<td>${r.status==='pending'&&!ownReq(r)?`<button data-ha="approve" data-id="${esc(r.id)}">Approve</button> <button data-ha="reject" data-id="${esc(r.id)}">Reject</button> `:''}<button data-ha="delete" data-id="${esc(r.id)}">Delete</button></td>`:''}</tr>`).join('')}</table></div>`:'<span class="mute">No holiday requests for this year yet.</span>'}</div>`;
 
   const work=D.hol.work.slice().sort((a,b)=>b.worked_date.localeCompare(a.worked_date));
   const workHtml=admin?`<details class="card"${holOpen==='w'?' open':''}><summary>Worked a bank holiday? Record it and give a day in lieu <span class="mute small">${work.length} recorded</span></summary><form id="wForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="wStaff">${staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select><label class="small mute">Bank holiday worked <input type="date" id="wDate"></label><label class="small mute">Days earned <select id="wDays"><option value="1">1 day</option><option value="0.5">Half day</option></select></label><input id="wNote" placeholder="Note (optional) e.g. site call-out" style="flex:1;min-width:160px"><button class="primary" type="submit">Record + give day in lieu</button></div><div class="small mute">Pick the engineer and the bank holiday they worked. The day in lieu is added to their balance in the table above; book it with "Day in lieu" ticked in the form below.</div></form>${work.length?`<div class="wrap" style="margin-top:10px"><table><tr><th>Engineer</th><th>Worked</th><th class="r">Days</th><th>Note</th><th>Recorded by</th><th></th></tr>${work.map(w=>`<tr><td><b>${esc(w.staff)}</b></td><td>${esc(uk(w.worked_date))}${bank[w.worked_date]?' <span class="small mute">'+esc(bank[w.worked_date])+'</span>':''}</td><td class="r">${num(w.days)}</td><td>${esc(w.note||'')}</td><td class="small mute">${esc(personName(w.recorded_by))}</td><td><button data-wdel="${esc(w.id)}">Delete</button></td></tr>`).join('')}</table></div>`:''}</details>`:'';
@@ -866,7 +888,7 @@ function viewHols(){
     const id=b.dataset.id, act=b.dataset.ha; b.disabled=true;
     try{
       if(act==='delete'){ if(!confirm('Delete this holiday request?')){ b.disabled=false; return; } await api('/rest/v1/holiday_requests?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); }
-      else await api('/rest/v1/holiday_requests?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:act==='approve'?'approved':'rejected'})});
+      else await api('/rest/v1/holiday_requests?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:act==='approve'?'approved':'rejected',decided_by:myUid,decided_at:new Date().toISOString()})}).then(()=>notifyHoliday(id));
       await load(); render();
     }catch(e){ holErr(e); b.disabled=false; }
   });
@@ -1144,16 +1166,50 @@ async function viewChat(){
   };
 }
 
+// ---------- vans & tools ----------
+// Anything with a date on it: van MOT / tax / service / insurance, tool calibration. Office (admin) edits; everyone signed in can see.
+const fleetDays = f => Math.round((parse(f.due_date)-parse(todayIso()))/864e5);
+const fleetPill = d => d<0?`<span class="pill red">OVERDUE ${-d}d</span>`:d===0?'<span class="pill red">TODAY</span>':d<=30?`<span class="pill amber">in ${d}d</span>`:`<span class="pill green">in ${d}d</span>`;
+let fleetKind='', fleetQ='';
+function viewFleet(){
+  const admin=portalOK(), v=$('v-fleet');
+  const list=D.fleet.filter(f=>(!fleetKind||f.kind===fleetKind)&&(!fleetQ||[f.item,f.assigned_to,f.check_name,f.notes].join(' ').toLowerCase().includes(fleetQ.toLowerCase()))).sort((a,b)=>a.due_date.localeCompare(b.due_date));
+  const soon=D.fleet.filter(f=>fleetDays(f)<=30).length;
+  const people=[...new Set(['Dave','Rob','Jono','Ricky','Martyn','Jordan','Ashleigh','Maxine',...D.fleet.map(f=>f.assigned_to).filter(Boolean)])];
+  v.innerHTML=`<div class="bar"><b>Vans &amp; tools</b><span class="mute small">${D.fleet.length} checks · ${soon} due within 30 days or overdue</span><span class="sp"></span>
+    <select id="fKind"><option value="">All</option>${['Van','Tool','Other'].map(k=>`<option ${k===fleetKind?'selected':''}>${k}</option>`).join('')}</select>
+    <input id="fQ" type="search" placeholder="Search reg, name, who has it…" value="${esc(fleetQ)}" style="min-width:200px"></div>
+  <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Item</th><th>Check</th><th>With</th><th>Notes</th>${admin?'<th></th>':''}</tr>${list.map(f=>`<tr><td>${uk(f.due_date)}</td><td>${fleetPill(fleetDays(f))}</td><td><b>${esc(f.item)}</b> <span class="mute small">${esc(f.kind)}</span></td><td>${esc(f.check_name)}</td><td>${esc(f.assigned_to||'')}</td><td class="small">${esc(f.notes||'')}</td>${admin?`<td style="white-space:nowrap"><button data-fr="${esc(f.id)}" title="Done: move the date on a year">Renewed +1 yr</button> <input type="date" data-fd="${esc(f.id)}" value="${esc(f.due_date)}" title="Change date"> <button data-fx="${esc(f.id)}">Delete</button></td>`:''}</tr>`).join('')}</table>`:'<span class="mute">Nothing here yet.</span>'}</div>
+  ${admin?`<details class="card"><summary>Add a van or tool check</summary><form id="fForm" style="margin-top:12px"><div class="bar" style="box-shadow:none"><select id="fKindNew"><option>Van</option><option>Tool</option><option>Other</option></select><input id="fItem" placeholder="Reg or tool name e.g. AB12 CDE" required style="flex:1;min-width:160px"><input id="fCheck" list="fChecks" placeholder="Check e.g. MOT" required style="min-width:130px"><datalist id="fChecks"><option>MOT</option><option>Road tax</option><option>Service</option><option>Insurance</option><option>Calibration</option><option>PAT test</option><option>Tacho / tyres</option></datalist><label class="small mute">Due <input type="date" id="fDue" required></label><select id="fWith"><option value="">Who has it?</option>${people.map(n=>`<option>${esc(n)}</option>`).join('')}</select><input id="fNotes" placeholder="Notes (optional)" style="flex:1;min-width:140px"><button class="primary" type="submit">Add</button></div></form></details>`:'<div class="mute small">The office keeps this list up to date.</div>'}`;
+  $('fKind').onchange=e=>{ fleetKind=e.target.value; viewFleet(); };
+  $('fQ').oninput=e=>{ fleetQ=e.target.value; const pos=e.target.selectionStart; viewFleet(); const q=$('fQ'); q.focus(); q.setSelectionRange(pos,pos); };
+  if(!admin) return;
+  const save=async(path,opts)=>{ try{ await api(path,opts); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } };
+  const J={'Content-Type':'application/json',Prefer:'return=minimal'};
+  v.querySelectorAll('button[data-fr]').forEach(b=>b.onclick=()=>{ const f=D.fleet.find(x=>x.id===b.dataset.fr); const d=parse(f.due_date>todayIso()?f.due_date:todayIso()); d.setFullYear(d.getFullYear()+1); save('/rest/v1/fleet_checks?id=eq.'+encodeURIComponent(f.id),{method:'PATCH',headers:J,body:JSON.stringify({due_date:iso(d)})}); });
+  v.querySelectorAll('input[data-fd]').forEach(i=>i.onchange=()=>{ if(i.value) save('/rest/v1/fleet_checks?id=eq.'+encodeURIComponent(i.dataset.fd),{method:'PATCH',headers:J,body:JSON.stringify({due_date:i.value})}); });
+  v.querySelectorAll('button[data-fx]').forEach(b=>b.onclick=()=>{ if(confirm('Delete this check?')) save('/rest/v1/fleet_checks?id=eq.'+encodeURIComponent(b.dataset.fx),{method:'DELETE',headers:{Prefer:'return=minimal'}}); });
+  $('fForm').onsubmit=e=>{ e.preventDefault(); save('/rest/v1/fleet_checks',{method:'POST',headers:J,body:JSON.stringify({kind:$('fKindNew').value,item:$('fItem').value.trim(),check_name:$('fCheck').value.trim(),due_date:$('fDue').value,assigned_to:$('fWith').value||null,notes:$('fNotes').value.trim()||null})}); };
+}
+
+// ---------- customer visit requests (sent from the customer portal) ----------
+function viewVisits(){
+  const open=D.visits.filter(x=>x.status==='new'), done=D.visits.filter(x=>x.status!=='new').slice(0,30);
+  const row=x=>`<tr><td>${uk(String(x.created_at).slice(0,10))}</td><td><b>${esc(x.customer)}</b><div class="small mute">${esc(x.contact_name||'')} ${x.phone?'· '+esc(x.phone):''} ${x.email?'· <a href="mailto:'+esc(x.email)+'">'+esc(x.email)+'</a>':''}</div></td><td>${esc(x.crane_no||'')}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.message||'')}${x.preferred_date?`<div class="small mute">Preferred: ${esc(x.preferred_date)}</div>`:''}</td><td>${x.status==='new'?`<button data-vh="${esc(x.id)}" class="primary">Mark handled</button>`:'<span class="pill grey">HANDLED</span>'}</td></tr>`;
+  $('v-visits').innerHTML=`<div class="card wrap"><h2>Waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
+  $('v-visits').querySelectorAll('button[data-vh]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await api('/rest/v1/visit_requests?id=eq.'+encodeURIComponent(b.dataset.vh),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:'handled',handled_by:(store.get('session')||{}).uid})}); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; } });
+}
+
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['portals','Customer portals'],['chat','Engineers chat']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['portals','Customer portals'],['chat','Engineers chat'],['fleet','Vans & tools'],['visits','Visit requests']];
 function render(){
-  if(tab==='portals'&&!portalOK()) tab='overview';
+  if((tab==='portals'||tab==='visits')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length};
-  $('tabs').innerHTML=TABS.filter(([k])=>k!=='portals'||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
+  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='visits')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,visits:viewVisits})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
