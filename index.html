@@ -261,7 +261,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-03.1';
+const APP_BUILD='2026-11-04.1';
 let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -335,7 +335,7 @@ function weekJobs(start){
   rows.sort((a,b)=> String(a.job).localeCompare(String(b.job)));
   return rows;
 }
-function dueList(withTracker){
+function dueList(withTracker=true){
   const canon=nameMap(), latest=new Map(), tod=parse(todayIso());
   D.reports.forEach(r=>{
     const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|')+'|'+(r.visit_type||'Service');
