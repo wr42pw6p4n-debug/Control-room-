@@ -261,7 +261,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-04.1';
+const APP_BUILD='2026-11-04.2';
 let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -965,6 +965,7 @@ function viewHols(){
 // ---------- customer portals ----------
 // Links and numbers for customers' supplier portals, so the office can get to them quickly. Office (admin logins) only.
 // There is deliberately no password field: keep logins in a proper password manager.
+const PORTAL_DEFAULT_URL = 'https://wr42pw6p4n-debug.github.io/Report-sheet/portal.html';
 const portalOK = () => !!(D.profile && D.profile.role==='admin');
 let portalQ = '', portalEdit = null;
 const portalUrl = u => { u=String(u||'').trim(); if(!u) return ''; if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u='https://'+u; return /^https?:\/\//i.test(u)?u:''; };
@@ -979,7 +980,7 @@ function viewPortals(){
   $('v-portals').innerHTML=`<div class="card"><h2>Customer portal logins <span class="mute small" id="pinCount">${withPin} of ${D.custs.length} customers have access</span></h2>
     <div class="bar" style="box-shadow:none;padding:0;border:0">
       <input id="pinSearch" type="search" placeholder="Search customer or PIN…" value="${esc(pinQ)}" style="flex:1;min-width:200px" autocomplete="off">
-      <label class="small mute" style="flex:1;min-width:220px">Portal address (for the copied login message)<input id="pinPortal" placeholder="https://…" value="${esc(store.get('portal_url')||'')}" style="width:100%"></label>
+      <label class="small mute" style="flex:1;min-width:220px">Portal address (for the copied login message)<input id="pinPortal" placeholder="https://…" value="${esc(store.get('portal_url')||PORTAL_DEFAULT_URL)}" style="width:100%"></label>
     </div>
     <div class="note" style="margin-top:12px">Customers sign in to the portal with their <b>company name</b> and their own <b>6-digit PIN</b>. A PIN belongs to one customer only. Making a new PIN stops the old one working straight away. Customers appear here once they have been added in the Crane Service Report app.</div>
     <div id="pinList"></div></div>
@@ -996,7 +997,7 @@ function viewPortals(){
     $('pinList').querySelectorAll('button[data-pnew]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pnew); if(!confirm('Make a new PIN for '+nm(c)+'?\n\nTheir old PIN stops working straight away, so you will need to give them the new one.')) return; b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:true},pin=>'New PIN for '+nm(c)+': '+pin+'. The old one no longer works.'); });
     $('pinList').querySelectorAll('button[data-prev]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.prev); if(!confirm('Remove portal access for '+nm(c)+'?\n\nTheir PIN stops working straight away. You can give access again later with a new PIN.')) return; b.disabled=true; rpc('revoke_customer_pin',{p_name_key:c.name_key},()=>'Portal access removed for '+nm(c)+'.'); });
     $('pinList').querySelectorAll('button[data-pcopy]').forEach(b=>b.onclick=async()=>{ const ok=await copyText(pn(cust(b.dataset.pcopy))); flash(b,ok?'Copied ✓':'Not copied'); });
-    $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||'').trim(); const ok=await copyText('Key Engineering customer portal\n'+(url?'Address: '+url+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
+    $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||PORTAL_DEFAULT_URL).trim(), link=url?url+(url.includes('?')?'&':'?')+'c='+encodeURIComponent(nm(c)):''; const ok=await copyText('Key Engineering customer portal\n'+(link?'Address: '+link+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
   };
   list();
   $('pinSearch').oninput=ev=>{ pinQ=ev.target.value; list(); };
