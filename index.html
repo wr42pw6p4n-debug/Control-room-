@@ -261,13 +261,13 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-02.3';
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-03.1';
+let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -289,10 +289,11 @@ async function load(){
     getAll('fleet_checks','select=*&order=due_date.asc').catch(()=>[]),
     getAll('visit_requests','select=*&order=created_at.desc').catch(()=>[]),
     getAll('customer_pins','select=name_key,pin').catch(()=>[]),
-    getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[])
+    getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[]),
+    getAll('tracker_items','select=*&order=due_date.asc').catch(()=>[])
   ]);
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
+  D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
   D.custs = (prof[0]&&prof[0].role==='admin')?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
@@ -334,7 +335,7 @@ function weekJobs(start){
   rows.sort((a,b)=> String(a.job).localeCompare(String(b.job)));
   return rows;
 }
-function dueList(){
+function dueList(withTracker){
   const canon=nameMap(), latest=new Map(), tod=parse(todayIso());
   D.reports.forEach(r=>{
     const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|')+'|'+(r.visit_type||'Service');
@@ -347,6 +348,7 @@ function dueList(){
     const dd=parse(due); if(!dd) return;
     out.push({r, kind:r.visit_type||'Service', iso:iso(dd), days:Math.round((dd-tod)/864e5), eng:canon(r.engineer)});
   });
+  if(withTracker) D.tracker.forEach(t=>{ const dd=parse(t.due_date); if(!dd) return; out.push({r:{customer:t.customer,crane_no:'',id_no:'',site:'',report_date:''}, kind:t.category, iso:iso(dd), days:Math.round((dd-tod)/864e5), eng:'Tracker', tracker:t}); });
   out.sort((a,b)=>a.days-b.days); return out;
 }
 function repairsList(){
@@ -373,7 +375,7 @@ function repairsList(){
 }
 
 // ---------- views ----------
-let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', tab = 'overview', foldersWeek = '';
+let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', dueSrc = '', dueQ = '', tab = 'overview', foldersWeek = '';
 
 function pill(days){ return days<0?`<span class="pill red">OVERDUE ${-days}d</span>`: days===0?'<span class="pill red">TODAY</span>': days<=7?`<span class="pill amber">${days}d</span>`:`<span class="pill grey">${days}d</span>`; }
 
@@ -668,15 +670,17 @@ function viewWeekEngineers(){
 }
 
 function viewDue(){
-  const all=dueList(), engs=[...new Set(all.map(d=>d.eng))].sort();
-  const list=all.filter(d=>d.days<=dueWin && (!dueEng||d.eng===dueEng) && (!dueKind||d.kind===dueKind));
+  const all=dueList(true), engs=[...new Set(all.map(d=>d.eng))].sort(), admin=portalOK(), trackKinds=[...new Set(D.tracker.map(t=>t.category))].sort();
+  const list=all.filter(d=>d.days<=dueWin && (!dueEng||d.eng===dueEng) && (!dueKind||d.kind===dueKind) && (!dueSrc||(dueSrc==='tracker')===!!d.tracker) && (!dueQ||[d.r.customer,d.kind,d.r.crane_no,d.r.site].join(' ').toLowerCase().includes(dueQ.toLowerCase())));
   $('v-due').innerHTML=`<div class="bar">
     <select id="dEng"><option value="">All engineers</option>${engs.map(e=>`<option ${e===dueEng?'selected':''}>${esc(e)}</option>`).join('')}</select>
-    <select id="dKind"><option value="">Service / Inspection / LOLER</option>${Object.keys(KINDS).map(k=>`<option ${k===dueKind?'selected':''}>${k}</option>`).join('')}</select>
+    <select id="dKind"><option value="">All types</option>${[...Object.keys(KINDS),...trackKinds].map(k=>`<option ${k===dueKind?'selected':''}>${esc(k)}</option>`).join('')}</select>
+    <select id="dSrc"><option value="">Reports + tracker</option><option value="reports" ${dueSrc==='reports'?'selected':''}>Reports only</option><option value="tracker" ${dueSrc==='tracker'?'selected':''}>Tracker only</option></select>
+    <input id="dQ" type="search" placeholder="Search customer…" value="${esc(dueQ)}" style="min-width:170px">
     <select id="dWin">${[7,30,60,90,365].map(n=>`<option value="${n}" ${n===dueWin?'selected':''}>Next ${n} days</option>`).join('')}</select>
     <span class="mute small">${list.length} shown</span><span class="sp"></span><button id="dCsv" ${list.length?'':'disabled'}>Download CSV</button></div>
-    <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th></tr>
-    ${list.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.customer)}<div class="mute small">${esc(d.r.site||'')}</div></td><td>${esc(d.r.crane_no||'')}${d.r.id_no?` <span class="mute small">ID ${esc(d.r.id_no)}</span>`:''}</td><td>${esc(d.eng)}</td><td>${uk(d.r.report_date)}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing due in this window.</span>'}</div>`;
+    <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th>${admin?'<th></th>':''}</tr>
+    ${list.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.customer)}<div class="mute small">${esc(d.r.site||'')}</div></td><td>${esc(d.r.crane_no||'')}${d.r.id_no?` <span class="mute small">ID ${esc(d.r.id_no)}</span>`:''}</td><td>${d.tracker?'<span class="pill grey">TRACKER</span>':esc(d.eng)}${d.tracker&&d.tracker.note?`<div class="small mute">${esc(d.tracker.note)}</div>`:''}</td><td>${uk(d.r.report_date)}</td>${admin?`<td style="white-space:nowrap">${d.tracker?`<input type="date" data-td="${esc(d.tracker.id)}" value="${esc(d.tracker.due_date)}" title="Done? Put the new due date in"> <button data-tx="${esc(d.tracker.id)}" title="Remove from the tracker">Remove</button>`:''}</td>`:''}</tr>`).join('')}</table>`:'<span class="mute">Nothing due in this window.</span>'}</div>`;
   // chase drafts: one email per customer covering everything shown
   const byCust=new Map(); list.forEach(d=>{ const k=String(d.r.customer||'').trim(); if(!byCust.has(k)) byCust.set(k,[]); byCust.get(k).push(d); });
   const emailFor=name=>{ const c=D.custs.find(x=>String((x.data&&x.data.customer)||x.name_key).trim().toLowerCase()===name.toLowerCase()); return c&&c.data&&c.data.email?String(c.data.email).trim():''; };
@@ -692,6 +696,11 @@ function viewDue(){
   $('dCsv').onclick=()=>csvDownload('due_'+todayIso()+'.csv',['Due','Days','Type','Customer','Site','Crane','ID','Engineer','Last visit'],list.map(d=>[uk(d.iso),d.days,d.kind,d.r.customer,d.r.site,d.r.crane_no,d.r.id_no,d.eng,uk(d.r.report_date)]));
   $('dEng').onchange=e=>{dueEng=e.target.value;viewDue();};
   $('dKind').onchange=e=>{dueKind=e.target.value;viewDue();};
+  $('dSrc').onchange=e=>{dueSrc=e.target.value;viewDue();};
+  $('dQ').oninput=e=>{dueQ=e.target.value; const pos=e.target.selectionStart; viewDue(); const q=$('dQ'); q.focus(); q.setSelectionRange(pos,pos);};
+  const tsave=async(path,opts)=>{ try{ await api(path,opts); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } };
+  $('v-due').querySelectorAll('input[data-td]').forEach(i=>i.onchange=()=>{ if(i.value) tsave('/rest/v1/tracker_items?id=eq.'+encodeURIComponent(i.dataset.td),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({due_date:i.value,updated_at:new Date().toISOString()})}); });
+  $('v-due').querySelectorAll('button[data-tx]').forEach(b=>b.onclick=()=>{ if(confirm('Remove this line from the tracker?')) tsave('/rest/v1/tracker_items?id=eq.'+encodeURIComponent(b.dataset.tx),{method:'DELETE',headers:{Prefer:'return=minimal'}}); });
   $('dWin').onchange=e=>{dueWin=+e.target.value;viewDue();};
 }
 
