@@ -261,7 +261,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-04.2';
+const APP_BUILD='2026-11-06.1';
 let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -410,6 +410,7 @@ function viewOverview(){
     <button class="alert-card ${urgent?'danger':'good'}" id="alertUrgent"><span class="alert-symbol">🔧</span><span><strong>${urgent}</strong><span>Urgent repairs</span></span></button>
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
     <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
+    <button class="alert-card ${hs.offToday.length?'warning':'good'}" id="alertOff"><span class="alert-symbol">🏖</span><span><strong>${hs.offToday.length}</strong><span>${hs.offToday.length?'Off today: '+hs.offToday.map(esc).join(', '):'Nobody off today'}</span></span></button>
     <button class="alert-card ${hs.starting.length||hs.pending?'warning':'good'}" id="alertHol"><span class="alert-symbol">📅</span><span><strong>${hs.starting.length}</strong><span>Holidays starting within 14 days${hs.pending?' · '+hs.pending+' to approve':''}</span></span></button>
   </div>
   <div class="tiles">
@@ -419,6 +420,7 @@ function viewOverview(){
     <div class="tile"><b>${gbp(wkTotal)}</b><span>Estimated weekly labour + mileage + call-outs</span></div>
     <div class="tile"><b>${D.reports.length}</b><span>Reports loaded</span></div>
   </div>
+  ${offCard(14)}
   <div class="overview-lower">
     <div class="card"><h2>Upcoming by engineer <span class="mute small">Overdue + next 30 days</span></h2>
     ${Object.keys(engs).length?`<div class="wrap"><table><thead><tr><th>Engineer</th><th class="r">Overdue</th><th class="r">Due in 30 days</th></tr></thead><tbody>${Object.keys(engs).sort().map(e=>`<tr><td>${esc(e)}</td><td class="r">${engs[e].o?`<span class="pill red">${engs[e].o}</span>`:'–'}</td><td class="r">${engs[e].s||'–'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state">No due dates found in the loaded reports. Equipment only appears here when a report has a next-due date.</div>'}
@@ -436,7 +438,7 @@ function viewOverview(){
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -474,7 +476,8 @@ function viewToday(){
   const poBody=d.pend.length?`<table><tr><th>Engineer</th><th>Site / ref</th><th>Description</th><th class="r">Est.</th></tr>${d.pend.map(p=>`<tr><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.description)}</td><td class="r">${esc(p.est_value||'')}</td></tr>`).join('')}</table>`:none('None waiting.');
   const doneBody=d.done.length?`<table><tr><th>Date</th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Defects</th></tr>${d.done.map(r=>{const it=((r.data&&r.data.items)||[]).filter(Boolean),u=it.filter(i=>i.status==='URGENT').length,a=it.filter(i=>i.status==='ATTN').length;return `<tr><td>${uk(r.report_date)}</td><td>${esc(r.visit_type||'Service')}</td><td>${esc(r.customer)}</td><td>${esc(r.crane_no||'')}</td><td>${esc(d.canon(r.engineer))}</td><td>${u?`<span class="pill red">${u} urgent</span> `:''}${a?`<span class="pill amber">${a} attn</span>`:''}${u||a?'':'none'}</td></tr>`;}).join('')}</table>`:none('No services or inspections completed.');
   const progBody=d.prog.length?`<table><tr><th>Job</th><th>Customer / site</th><th>Type</th><th>Engineers</th></tr>${d.prog.map(j=>{const x=j.data;return `<tr><td>${esc(x.job||j.id)}</td><td>${esc(x.customerName||x.customer||'')}<div class="mute small">${esc(x.site||'')}</div></td><td>${esc(x.type||'')}</td><td>${esc((x.engineers||[]).map(d.canon).join(', '))}</td></tr>`;}).join('')}</table>`:none('No jobs in progress.');
-  $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
+  $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting · ${holSummary().offToday.length} off today</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
+    offCard(14)+
     sec('Services, inspections &amp; LOLER — overdue and next 14 days',d.due.length,dueBody)+
     sec('Urgent repairs outstanding',d.urgent.length,urgBody)+
     sec('Purchase orders awaiting approval',d.pend.length,poBody)+
@@ -832,6 +835,21 @@ function holSummary(){
     clashes:holClashes(t,addDays(t,90)),
     pending:D.hol.reqs.filter(r=>r.status==='pending').length
   };
+}
+// Who is off between today and N days ahead (approved and waiting-for-approval), for the Overview and Today tabs
+function offList(days){
+  const t=todayIso(), end=addDays(t,days), bank=holBank();
+  return holLive().filter(r=>r.end_date>=t&&r.start_date<=end&&holWorkDays(r,bank).some(s=>s>=t&&s<=end))
+    .sort((a,b)=>a.start_date.localeCompare(b.start_date)||String(a.staff).localeCompare(String(b.staff)))
+    .map(r=>({r, now:r.status==='approved'&&r.start_date<=t&&r.end_date>=t&&isWork(t,bank), back:nextWork(r.end_date,bank)}));
+}
+function offCard(days){
+  const list=offList(days);
+  const rows=list.map(x=>{ const r=x.r;
+    const dates=(r.start_date===r.end_date?fmtDay(r.start_date):fmtDay(r.start_date)+' to '+fmtDay(r.end_date))+(r.half_day?' (half day)':'')+(r.lieu?' · day in lieu':'');
+    const st=r.status==='pending'?'<span class="pill amber">WAITING FOR APPROVAL</span>':x.now?'<span class="pill red">OFF TODAY</span>':'<span class="pill green">APPROVED</span>';
+    return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(dates)}</td><td>${esc(fmtDay(x.back))}</td><td>${st}</td></tr>`; }).join('');
+  return `<div class="card" id="offCard"><h2>Who is off <span class="mute small">${list.length?list.length+' booked · ':''}next ${days} days</span></h2>${list.length?`<div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th>Back at work</th><th></th></tr>${rows}</table></div>`:`<span class="mute">Nobody is booked off in the next ${days} days.</span>`}</div>`;
 }
 function holUsed(n,y){
   const bank=holBank(), t=todayIso(), o={taken:0,booked:0,pending:0};
