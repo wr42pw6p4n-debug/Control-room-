@@ -21,10 +21,12 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:15px clamp(14px,3vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20;box-shadow:0 5px 20px rgba(0,0,0,.16);border-bottom:4px solid var(--accent)}
-header h1{font-size:19px;letter-spacing:.2px;margin:0;flex:1;min-width:190px;font-weight:800}
-header h1:before{content:"KE";display:inline-grid;place-items:center;width:36px;height:36px;margin-right:11px;background:var(--accent);color:#111c29;border-radius:10px;font-size:13px;font-weight:950;vertical-align:middle;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
-header .who{color:#d1dbe6;font-size:12px}
+header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:8px clamp(14px,3vw,32px);display:flex;align-items:center;gap:10px;flex-wrap:nowrap;border-bottom:3px solid var(--accent)}
+header h1{font-size:16px;letter-spacing:.2px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800}
+header h1:before{content:"KE";display:inline-grid;place-items:center;width:30px;height:30px;margin-right:9px;background:var(--accent);color:#111c29;border-radius:10px;font-size:13px;font-weight:950;vertical-align:middle;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+header .who{color:#aebccb;font-size:11px;white-space:nowrap}
+header #synced{display:none}
+header button{padding:6px 11px;font-size:13px}
 button,select,input{font:inherit;color:inherit}
 button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 button:hover{transform:translateY(-1px);box-shadow:0 5px 13px rgba(0,0,0,.1);border-color:var(--accent)}
@@ -33,8 +35,8 @@ header button{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.22
 header button:hover{background:rgba(255,255,255,.16)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#172334;font-weight:800}
 button:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
-nav{display:flex;gap:5px;padding:8px clamp(10px,3vw,32px) 0;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:70px;z-index:15;box-shadow:0 3px 10px rgba(18,35,54,.04)}
-nav button{border:0;border-bottom:3px solid transparent;border-radius:10px 10px 0 0;background:none;padding:12px 15px;white-space:nowrap;color:var(--mute);box-shadow:none;font-weight:650}
+nav{display:flex;gap:5px;padding:8px clamp(10px,3vw,32px) 0;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:15;box-shadow:0 3px 10px rgba(18,35,54,.04)}
+nav button{border:0;border-bottom:3px solid transparent;border-radius:10px 10px 0 0;background:none;padding:10px 11px;font-size:14px;white-space:nowrap;color:var(--mute);box-shadow:none;font-weight:650}
 nav button:hover{transform:none;box-shadow:none;background:var(--bg)}
 nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:850;background:linear-gradient(0deg,rgba(242,169,0,.12),transparent)}
 nav .n{display:inline-block;min-width:21px;padding:1px 7px;margin-left:7px;border-radius:99px;background:var(--line);font-size:11px;text-align:center;font-weight:800}
@@ -82,12 +84,13 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 #msg:empty{display:none}
 
 /* Control-room layer */
-.commandbar{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(150px,.7fr);gap:12px;margin:0 0 18px}
+.commandbar{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 14px}
 .command-search{position:relative;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:10px 13px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px}
 .command-search .search-icon{font-size:20px;color:var(--accent-dark)}
 .command-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;padding:7px 0}
 .command-search .hint{font-size:10px;color:var(--mute);white-space:nowrap;border:1px solid var(--line);padding:3px 6px;border-radius:5px}
-.command-status{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:15px;padding:12px 15px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
+.command-status{display:none}
+.command-status-old{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:15px;padding:12px 15px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
 .command-status .status-dot{width:10px;height:10px;border-radius:50%;background:#62d995;box-shadow:0 0 0 5px rgba(98,217,149,.14);flex-shrink:0}
 .command-status b{display:block;font-size:12px}.command-status span{display:block;color:#c8d4e1;font-size:11px}
 .search-results{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin:-8px 0 18px;overflow:hidden}
@@ -123,11 +126,11 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 @media(max-width:700px){.commandbar{grid-template-columns:1fr}.overview-lower{grid-template-columns:1fr}.search-results .result{grid-template-columns:70px minmax(0,1fr)}.search-results .result-go{display:none}.control-hero{padding:19px}.control-hero:after{right:-170px}}
 
 @media(max-width:700px){
- header{top:0;padding:12px;gap:8px}header h1{font-size:16px;min-width:145px}
- header h1:before{width:31px;height:31px;margin-right:7px}
- header .who{font-size:11px}
- nav{top:60px;padding-left:8px;padding-right:8px}
- nav button{padding:11px 12px}
+ header{padding:8px 10px;gap:6px}header h1{font-size:15px}
+ header h1:before{width:28px;height:28px;margin-right:7px}
+ header .who{display:none}
+ nav{top:0;padding-left:6px;padding-right:6px}
+ nav button{padding:10px 10px}
  main{padding:10px}
  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
  .tile{padding:14px 12px;min-height:100px}
@@ -200,6 +203,7 @@ tr.hsoon td{background:var(--ambbg)}
     <div id="msg"></div>
     <section id="v-overview"></section>
     <section id="v-today" class="hide"></section>
+    <section id="v-visits" class="hide"></section>
     <section id="v-bookings" class="hide"></section>
     <section id="v-week" class="hide"></section>
     <section id="v-due" class="hide"></section>
@@ -210,7 +214,6 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-portals" class="hide"></section>
     <section id="v-chat" class="hide"></section>
     <section id="v-fleet" class="hide"></section>
-    <section id="v-visits" class="hide"></section>
     <section id="v-customers" class="hide"></section>
     <section id="v-backups" class="hide"></section>
   </main>
@@ -270,7 +273,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-09.1';
+const APP_BUILD='2026-11-09.2';
 let D = {backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -310,7 +313,7 @@ async function load(){
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
   if(D.jobsBlocked) $('msg').innerHTML += '<div class="note">This login can\'t see job sheets. Add the office user to the Job Manager members list in Supabase (table <b>js_members</b>).</div>';
-  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD;
+  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD; $('refresh').title=$('synced').textContent; $('refresh').textContent='↻ '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 
 // ---------- engineer names (Job Manager uses "Dave" and "Dave Boler" for the same person) ----------
@@ -344,10 +347,22 @@ function weekJobs(start){
   rows.sort((a,b)=> String(a.job).localeCompare(String(b.job)));
   return rows;
 }
+const nk = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+let _eqMap=null,_eqFor=null;
+function eqCanon(){
+  if(_eqFor===D.reports&&_eqMap) return _eqMap;
+  const g=new Map(); D.reports.forEach(r=>{ if(!nk(r.crane_no)) return; const k=nk(r.customer)+'|'+nk(r.crane_no); if(!g.has(k)) g.set(k,new Set()); g.get(k).add(nk(r.id_no)); });
+  const map=new Map();
+  g.forEach((ids,k)=>{ const reps=[]; [...ids].filter(Boolean).sort((a,b)=>b.length-a.length).forEach(id=>{ if(!reps.some(rp=>rp.includes(id))) reps.push(id); });
+    ids.forEach(id=>map.set(k+'|'+id, id?(reps.find(rp=>rp.includes(id))||id):(reps.length===1?reps[0]:''))); });
+  _eqMap=map; _eqFor=D.reports; return map;
+}
+// one key per physical crane: customer + crane no + ID, where an ID that is part of a longer ID for the same crane counts as the same
+function eqKeyR(r){ const c=nk(r.crane_no), base=nk(r.customer)+'|'+c; if(!c) return base+'|'+nk(r.id_no); const m=eqCanon().get(base+'|'+nk(r.id_no)); return base+'|'+(m==null?nk(r.id_no):m); }
 function dueList(withTracker=true){
   const canon=nameMap(), latest=new Map(), tod=parse(todayIso());
   D.reports.forEach(r=>{
-    const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|')+'|'+(r.visit_type||'Service');
+    const k=eqKeyR(r)+'|'+(r.visit_type||'Service');
     const p=latest.get(k);
     if(!p || (r.report_date||'')>(p.report_date||'')) latest.set(k,r);
   });
@@ -362,7 +377,7 @@ function dueList(withTracker=true){
 }
 function repairsList(){
   const canon=nameMap(), byEq=new Map(), cutoff=addDays(todayIso(),-30), open=[], done=[];
-  D.reports.forEach(r=>{ const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|'); if(!byEq.has(k)) byEq.set(k,[]); byEq.get(k).push(r); });
+  D.reports.forEach(r=>{ const k=eqKeyR(r); if(!byEq.has(k)) byEq.set(k,[]); byEq.get(k).push(r); });
   byEq.forEach(vs=>{
     vs.sort((a,b)=>(a.report_date||'').localeCompare(b.report_date||''));
     const latest=new Map();
@@ -1257,20 +1272,20 @@ function viewFleet(){
 function viewVisits(){
   const open=D.visits.filter(x=>x.status==='new'), done=D.visits.filter(x=>x.status!=='new').slice(0,30);
   const row=x=>`<tr><td>${uk(String(x.created_at).slice(0,10))}</td><td><b>${esc(x.customer)}</b><div class="small mute">${esc(x.contact_name||'')} ${x.phone?'· '+esc(x.phone):''} ${x.email?'· <a href="mailto:'+esc(x.email)+'">'+esc(x.email)+'</a>':''}</div></td><td>${esc(x.crane_no||'')}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.message||'')}${x.preferred_date?`<div class="small mute">Preferred: ${esc(x.preferred_date)}</div>`:''}</td><td>${x.status==='new'?`<button data-vh="${esc(x.id)}" class="primary">Mark handled</button>`:'<span class="pill grey">HANDLED</span>'}</td></tr>`;
-  $('v-visits').innerHTML=`<div class="card wrap"><h2>Waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
+  $('v-visits').innerHTML=`<div class="card wrap"><h2>Customer portal visit requests waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
   $('v-visits').querySelectorAll('button[data-vh]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await api('/rest/v1/visit_requests?id=eq.'+encodeURIComponent(b.dataset.vh),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:'handled',handled_by:(store.get('session')||{}).uid})}); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; } });
 }
 
 // ---------- customer page: everything about one customer on one screen ----------
-const nk = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
-let custQ='', custSel='';
+let custQ='', custSel='', custType='All';
 function custIndex(){
   const m=new Map();
-  const get=name=>{ const k=nk(name); if(!k) return null; if(!m.has(k)) m.set(k,{key:k,name:String(name).trim(),rec:null,reports:[],tracker:[],visits:[]}); return m.get(k); };
+  const get=name=>{ const k=nk(name); if(!k) return null; if(!m.has(k)) m.set(k,{key:k,name:String(name).trim(),rec:null,reports:[],tracker:[],visits:[],jobs:[]}); return m.get(k); };
   D.custs.forEach(c=>{ const nm=(c.data&&c.data.customer)||c.name_key; const e=get(nm); if(e){ e.rec=c; e.name=String(nm).trim(); } });
   D.reports.forEach(r=>{ const e=get(r.customer); if(e) e.reports.push(r); });
   D.tracker.forEach(t=>{ const e=get(t.customer); if(e) e.tracker.push(t); });
   D.visits.forEach(v=>{ const e=get(v.customer); if(e) e.visits.push(v); });
+  D.jobs.forEach(j=>{ const d=j.data||{}, e=get(d.customerName||d.customer); if(e) e.jobs.push(j); });
   return m;
 }
 function viewCustomers(){
@@ -1284,12 +1299,21 @@ function viewCustomers(){
   const list=shown.length?shown.map(e=>`<button class="custrow ${e.key===custSel?'on':''}" data-ck="${esc(e.key)}"><b>${esc(e.name)}</b><span class="small mute">${e.reports.length} report${e.reports.length===1?'':'s'}</span>${flags(e)}</button>`).join(''):'<span class="mute">No customers match.</span>';
   const detail=custSel?custDetail(idx.get(custSel),dueBy[custSel]||[],repBy[custSel]||[]):`<div class="card"><span class="mute">Choose a customer to see their cranes, due dates, repairs, reports and requests in one place. ${all.length} customers.</span></div>`;
   $('v-customers').innerHTML=`<div class="custwrap"><div class="custlist card"><input type="search" id="custQ" placeholder="Search customer, crane or ID…" value="${esc(custQ)}"><div class="custrows">${list}</div></div><div class="custdetail">${detail}</div></div>`;
+  $('v-customers').querySelectorAll('button[data-ct]').forEach(b=>b.onclick=()=>{ custType=b.dataset.ct; viewCustomers(); });
+  $('v-customers').querySelectorAll('button[data-cpdf]').forEach(b=>b.onclick=async()=>{
+    const r=D.reports.find(x=>x.id===b.dataset.cpdf); if(!r) return; const old=b.textContent; b.disabled=true; b.textContent='Opening…';
+    const w=window.open('','_blank');   // opened inside the click so pop-up blockers allow it
+    try{ const url=await reportPdfUrl(r); if(w) w.location=url; else location.href=url; }
+    catch(e){ if(w) w.close(); $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); }
+    b.disabled=false; b.textContent=old;
+  });
+  $('v-customers').querySelectorAll('button[data-cjob]').forEach(b=>b.onclick=()=>{ weekStart=b.dataset.cjob?monday(b.dataset.cjob):weekStart; tab='week'; store.set('tab',tab); render(); window.scrollTo({top:0}); });
   $('custQ').oninput=ev=>{ custQ=ev.target.value; viewCustomers(); const i=$('custQ'); i.focus(); i.setSelectionRange(i.value.length,i.value.length); };
   $('v-customers').querySelectorAll('button[data-ck]').forEach(b=>b.onclick=()=>{ custSel=b.dataset.ck; viewCustomers(); const d=$('v-customers').querySelector('.custdetail'); if(d&&window.innerWidth<=820) d.scrollIntoView({behavior:'smooth',block:'start'}); });
 }
 function custDetail(e,dues,reps){
   const admin=portalOK(), data=(e.rec&&e.rec.data)||{}, pin=admin?String(data.customerpin||'').trim():'', email=String(data.email||'').trim();
-  const eqKey=r=>[r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|');
+  const eqKey=eqKeyR;
   const cranes=new Map();
   e.reports.forEach(r=>{    // reports arrive newest first
     if(!cranes.has(eqKey(r))) cranes.set(eqKey(r),{key:eqKey(r),crane:String(r.crane_no||'').trim(),id:String(r.id_no||'').trim(),site:'',last:{}});
@@ -1303,17 +1327,24 @@ function custDetail(e,dues,reps){
   const cranesHtml=cr.length?`<div class="wrap"><table><tr><th>Crane</th><th>ID</th><th>Site</th><th>Last service</th><th>Last inspection</th><th>Last LOLER</th><th>Next due</th></tr>${cr.map(c=>`<tr><td><b>${esc(c.crane||'—')}</b></td><td>${esc(c.id)}</td><td>${esc(c.site)}</td><td>${uk(c.last.Service)||'<span class="mute">—</span>'}</td><td>${uk(c.last.Inspection)||'<span class="mute">—</span>'}</td><td>${uk(c.last.LOLER)||'<span class="mute">—</span>'}</td><td>${nextFor(c)}</td></tr>`).join('')}</table></div>`:'<span class="mute">No reports filed for this customer yet.</span>';
   const dueHtml=dues.length?`<div class="wrap"><table><tr><th>Due</th><th></th><th>Type</th><th>Crane</th><th>From</th></tr>${dues.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.crane_no||'')}</td><td class="mute small">${d.tracker?'Tracker':'Last report'}</td></tr>`).join('')}</table></div>`:'<span class="mute">Nothing due.</span>';
   const repHtml=reps.length?`<div class="wrap"><table><tr><th>Crane</th><th>Item</th><th></th><th>Reported</th><th>Engineer</th></tr>${reps.map(x=>`<tr><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group||'')} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td><span class="pill ${x.it.status==='URGENT'?'red':'amber'}">${x.it.status==='URGENT'?'URGENT':'ATTENTION'}</span></td><td>${uk(x.r.report_date)}</td><td>${esc(x.eng)}</td></tr>`).join('')}</table></div>`:'<span class="mute">No outstanding repairs.</span>';
-  const recent=e.reports.slice(0,15);
-  const recHtml=recent.length?`<div class="wrap"><table><tr><th>Date</th><th>Type</th><th>Crane</th><th>Report</th><th>Engineer</th><th>Defects</th></tr>${recent.map(r=>{ const it=((r.data&&r.data.items)||[]).filter(Boolean), u=it.filter(i=>i.status==='URGENT').length, a=it.filter(i=>i.status==='ATTN').length; return `<tr><td>${uk(r.report_date)}</td><td>${esc(r.visit_type||'Service')}</td><td>${esc(r.crane_no||'')}</td><td>${esc(r.report_no||'')}</td><td>${esc(r.engineer||'')}</td><td>${u?`<b style="color:var(--red)">${u} urgent</b>`:''}${u&&a?', ':''}${a?a+' attn':''}${!u&&!a?'none':''}</td></tr>`; }).join('')}</table></div>${e.reports.length>15?`<p class="small mute" style="margin:8px 0 0">Showing the latest 15 of ${e.reports.length}. Use the Due soon and Repairs tabs for more.</p>`:''}`:'<span class="mute">No reports.</span>';
+  const kindOf=r=>/loler/i.test(r.visit_type||'')?'LOLER':/insp/i.test(r.visit_type||'')?'Inspection':'Service';
+  const cnt=t=>t==='All'?e.reports.length:e.reports.filter(r=>kindOf(r)===t).length;
+  const shownRep=e.reports.filter(r=>custType==='All'||kindOf(r)===custType);
+  const typeBtns=['All','Service','Inspection','LOLER'].map(t=>`<button data-ct="${t}" class="${t===custType?'primary':''}">${t} (${cnt(t)})</button>`).join(' ');
+  const recHtml=`<p style="margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap">${typeBtns}</p>`+(shownRep.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Date</th><th>Type</th><th>Crane</th><th>Report</th><th>Engineer</th><th>Defects</th><th></th></tr>${shownRep.map(r=>{ const it=((r.data&&r.data.items)||[]).filter(Boolean), u=it.filter(i=>i.status==='URGENT').length, a=it.filter(i=>i.status==='ATTN').length; return `<tr><td>${uk(r.report_date)}</td><td>${esc(kindOf(r))}</td><td>${esc(r.crane_no||'')}</td><td>${esc(r.report_no||'')}</td><td>${esc(r.engineer||'')}</td><td>${u?`<b style="color:var(--red)">${u} urgent</b>`:''}${u&&a?', ':''}${a?a+' attn':''}${!u&&!a?'none':''}</td><td class="r"><button data-cpdf="${esc(r.id)}">Open PDF</button></td></tr>`; }).join('')}</table></div>`:'<span class="mute">No reports of this type.</span>');
+  const canonJ=nameMap(), jdate=j=>((((j.data||{}).time||[])[0]||{}).date)||(j.data||{}).date||'';
+  const jobsSorted=e.jobs.slice().sort((p,q)=>jdate(q).localeCompare(jdate(p)));
+  const jobsHtml=jobsSorted.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Job</th><th>Date</th><th>Type</th><th>Site</th><th>Status</th><th>Engineers</th><th></th></tr>${jobsSorted.map(j=>{ const x=j.data||{}; return `<tr><td><b>${esc(x.job||j.id)}</b></td><td>${uk(jdate(j))}</td><td>${esc(x.type||'')}</td><td>${esc(x.site||'')}</td><td>${esc(x.status||'')}</td><td class="small">${esc((x.engineers||[]).map(canonJ).join(' + '))}</td><td class="r"><button data-cjob="${esc(jdate(j))}">Open</button></td></tr>`; }).join('')}</table></div>`:`<span class="mute">${D.jobsBlocked?'This login cannot see job sheets.':'No job sheets for this customer.'}</span>`;
   const vis=e.visits.slice(0,10);
   const visHtml=vis.length?`<div class="wrap"><table><tr><th>Sent</th><th>Request</th><th>Contact</th><th></th></tr>${vis.map(v=>`<tr><td>${uk(String(v.created_at).slice(0,10))}</td><td style="white-space:pre-wrap">${esc(v.message||'')}</td><td class="small">${esc(v.contact_name||'')} ${v.phone?'· '+esc(v.phone):''}</td><td>${v.status==='new'?'<span class="pill amber">NEW</span>':'<span class="pill grey">DONE</span>'}</td></tr>`).join('')}</table></div>`:'';
   return `<div class="card custhead"><h2>${esc(e.name)}</h2>
     <div class="small">${email?`<a href="mailto:${esc(email)}">${esc(email)}</a>`:'<span class="mute">No email on file</span>'}${admin?` · Portal PIN: ${pin?`<b>${esc(pin)}</b>`:'<span class="mute">none yet (Customer portals tab)</span>'}`:''}</div></div>
-  <div class="tiles">${tile(cr.length,'Cranes / equipment')}${tile(e.reports.length,'Reports on file')}${tile(over,'Overdue',over?'red':'green')}${tile(soon,'Due in 30 days',soon?'amber':'')}${tile(urg,'Urgent repairs',urg?'red':'green')}</div>
+  <div class="tiles">${tile(cr.length,'Cranes / equipment')}${tile(e.reports.length,'Reports on file')}${tile(e.jobs.length,'Job sheets')}${tile(over,'Overdue',over?'red':'green')}${tile(soon,'Due in 30 days',soon?'amber':'')}${tile(urg,'Urgent repairs',urg?'red':'green')}</div>
   <div class="card"><h2>Cranes &amp; equipment</h2>${cranesHtml}</div>
   <div class="card"><h2>Due dates <span class="mute small">${dues.length}</span></h2>${dueHtml}</div>
   <div class="card"><h2>Outstanding repairs <span class="mute small">${reps.length}</span></h2>${repHtml}</div>
-  <div class="card"><h2>Recent reports</h2>${recHtml}</div>
+  <div class="card"><h2>Service, inspection &amp; LOLER reports</h2>${recHtml}</div>
+  <div class="card"><h2>Job sheets <span class="mute small">${jobsSorted.length}</span></h2>${jobsHtml}</div>
   ${visHtml?`<div class="card"><h2>Visit requests from the portal</h2>${visHtml}</div>`:''}`;
 }
 
@@ -1346,19 +1377,22 @@ function viewBackups(){
 }
 
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['customers','Customers'],['portals','Customer portals'],['chat','Engineers chat'],['fleet','Vans & tools'],['visits','Visit requests'],['backups','Backups']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
-  if((tab==='portals'||tab==='visits'||tab==='backups')&&!portalOK()) tab='overview';
+  if(tab==='visits') tab='bookings';
+  if((tab==='portals'||tab==='backups')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
-  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='visits'&&k!=='backups')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length+D.visits.filter(v=>v.status==='new').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length};
+  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='backups')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,visits:viewVisits,customers:viewCustomers,backups:viewBackups})[tab]();
+  $('v-visits').classList.toggle('hide',!(tab==='bookings'&&portalOK()));
+  if(tab==='bookings'&&portalOK()) viewVisits();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,backups:viewBackups})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
-async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; tab=store.get('tab')||'overview'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); }
+async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); }
 
 $('go').onclick=async()=>{
   $('go').disabled=true;
