@@ -223,7 +223,9 @@ tr.hsoon td{background:var(--ambbg)}
 // Same Supabase project as the Crane Service Report, Job Manager and KEPO apps.
 // The publishable key is meant to be public — row-level security in Supabase is what protects the data.
 const SB = {url:'https://eyerpokgadrgxticqzez.supabase.co', key:'sb_publishable_FsyUdlUOTgA51pkAy5pNiA_AsHqq6Ed'};
-const RATES = {nt:50, ot:64, dt:73, callout:100, mile:0.70};   // normal, OT1, OT2, call-out, per mile
+// Charge-out rates are kept in the private database (table app_rates, office admins only), NOT in this public page. Set them on the invoice worksheet.
+const RATES = {nt:0, ot:0, dt:0, callout:0, mile:0};   // normal, OT1, OT2, call-out, per mile
+let ratesSet = false;
 const KINDS = {Service:'Service', Inspection:'Inspection', LOLER:'LOLER'};
 
 const $ = id => document.getElementById(id);
@@ -273,13 +275,13 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-09.2';
+const APP_BUILD='2026-11-10.1';
 let D = {backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -302,8 +304,10 @@ async function load(){
     getAll('visit_requests','select=*&order=created_at.desc').catch(()=>[]),
     getAll('customer_pins','select=name_key,pin').catch(()=>[]),
     getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[]),
-    getAll('tracker_items','select=*&order=due_date.asc').catch(()=>[])
+    getAll('tracker_items','select=*&order=due_date.asc').catch(()=>[]),
+    getAll('app_rates','select=key,data').catch(()=>[])
   ]);
+  { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
   D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
@@ -643,11 +647,29 @@ function viewBookings(){
 }
 function viewWeek(){ if(invMode) viewInvoice(); else viewWeekEngineers(); }
 function hrsText(j){ return [j.nt?j.nt+' normal':'',j.ot?j.ot+' OT1':'',j.dt?j.dt+' OT2':''].filter(Boolean).join(', ')+(j.n>1?' × '+j.n+' engineers':''); }
+function ratesCard(){
+  if(!portalOK()) return ratesSet?'':'<div class="note">Charge-out rates are set by the office admins, so costs show as £0 here.</div>';
+  const f=(k,l,st)=>`<label class="small" style="display:block">${l}<input id="rt_${k}" type="number" min="0" step="${st}" inputmode="decimal" value="${RATES[k]}" style="width:100%"></label>`;
+  return `<details class="card"${ratesSet?'':' open'}><summary><b>Charge-out rates</b> <span class="mute small">${ratesSet?'£'+RATES.nt+' / £'+RATES.ot+' / £'+RATES.dt+' per hour · call-out £'+RATES.callout+' · £'+RATES.mile+' a mile':'not set yet'}</span></summary>
+    <p class="small mute" style="margin:8px 0">One set of rates for every engineer's job sheet. Kept in the private database. Only office admins can see or change them.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${f('nt','Normal time £/hr',0.01)}${f('ot','Overtime 1 £/hr',0.01)}${f('dt','Overtime 2 £/hr',0.01)}${f('callout','Call-out £ (per job)',0.01)}${f('mile','Mileage £/mile',0.001)}</div>
+    <p style="margin:10px 0 0"><button class="primary" id="rtSave">Save rates</button> <span id="rtMsg" class="small mute"></span></p></details>`;
+}
+function bindRates(){
+  const b=$('rtSave'); if(!b) return;
+  b.onclick=async()=>{
+    const data={}; for(const k of ['nt','ot','dt','callout','mile']){ const v=parseFloat($('rt_'+k).value); if(!(v>=0)){ $('rtMsg').textContent='Check the '+k+' box — it needs a number.'; return; } data[k]=v; }
+    b.disabled=true; $('rtMsg').textContent='Saving…';
+    try{ await api('/rest/v1/app_rates?on_conflict=key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'charge',data,updated_at:new Date().toISOString(),updated_by:(store.get('session')||{}).uid})}); await load(); render(); }
+    catch(e){ $('rtMsg').textContent='Could not save: '+e.message; b.disabled=false; }
+  };
+}
 function viewInvoice(){
   const rows=weekJobs(weekStart), by={};
   rows.forEach(j=>{ const c=j.customer||'Customer not set'; (by[c]=by[c]||[]).push(j); });
   const tot=rows.reduce((s,j)=>s+j.total,0);
   let html=`<div class="bar"><button id="iPrev">◀</button><b>Invoice worksheet · week starting ${uk(weekStart)}</b><button id="iNext">▶</button><button id="iNow">This week</button><span class="sp"></span><button id="iBack">Back to engineers</button><button id="iPrint">Print</button></div>
+  ${ratesCard()}
   <div class="note">One line per job. Labour = hours × rate × number of engineers; mileage once per job. Type materials into each job — they are saved for the whole office.</div>
   <div class="tiles"><div class="tile"><b>${Object.keys(by).length}</b><span>Customers to invoice</span></div><div class="tile"><b>${gbp(tot)}</b><span>Total to invoice</span></div></div>`;
   if(!rows.length) html+='<div class="card mute">No job sheets with time booked in this week.</div>';
@@ -664,6 +686,7 @@ function viewInvoice(){
   $('iNow').onclick=()=>{weekStart=monday(todayIso());viewWeek();};
   $('iBack').onclick=()=>{invMode=false;viewWeek();};
   $('iPrint').onclick=()=>window.print();
+  bindRates();
   bindMats();
 }
 function viewWeekEngineers(){
