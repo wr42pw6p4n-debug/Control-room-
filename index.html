@@ -60,6 +60,12 @@ tbody tr:hover,table tr:hover td{background:rgba(242,169,0,.045)}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .wrap{overflow:auto;border-radius:10px}
 .pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:850;letter-spacing:.035em;white-space:nowrap}
+.regtab td,.regtab th{padding:6px 5px;text-align:center;white-space:nowrap}.regtab td:first-child,.regtab th:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
+.rc{min-width:34px;cursor:pointer;font-weight:800;border-radius:6px;user-select:none}
+.rc.done{background:rgba(20,170,90,.25);color:var(--green)}.rc.late{background:rgba(220,50,40,.25);color:var(--red)}.rc.open{background:rgba(245,170,0,.28);color:var(--amber)}.rc.na{color:var(--mute);opacity:.55;background:rgba(128,128,128,.10)}.rc.future{color:var(--mute);border:1px dashed var(--line)}
+.rc small{display:block;font-size:9px;font-weight:700;line-height:1}
+.regchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.regmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:grid;place-items:center;padding:14px}.regmodal .card{max-width:420px;width:100%;margin:0}
 .custwrap{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
 .custlist{position:sticky;top:8px;margin-bottom:0}.custlist input{width:100%;margin-bottom:10px}
 .custrows{display:flex;flex-direction:column;gap:6px;max-height:68vh;overflow:auto}
@@ -215,6 +221,7 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-chat" class="hide"></section>
     <section id="v-fleet" class="hide"></section>
     <section id="v-customers" class="hide"></section>
+    <section id="v-register" class="hide"></section>
     <section id="v-backups" class="hide"></section>
   </main>
 </div>
@@ -224,7 +231,7 @@ tr.hsoon td{background:var(--ambbg)}
 // The publishable key is meant to be public — row-level security in Supabase is what protects the data.
 const SB = {url:'https://eyerpokgadrgxticqzez.supabase.co', key:'sb_publishable_FsyUdlUOTgA51pkAy5pNiA_AsHqq6Ed'};
 // Charge-out rates are kept in the private database (table app_rates, office admins only), NOT in this public page. Set them on the invoice worksheet.
-const RATES = {nt:0, ot:0, dt:0, callout:0, mile:0};   // normal, OT1, OT2, call-out, per mile
+const RATES = {nt:0, ot:0, dt:0, callout:0, mile:0, vat:0};   // normal, OT1, OT2, call-out, per mile
 let ratesSet = false;
 const KINDS = {Service:'Service', Inspection:'Inspection', LOLER:'LOLER'};
 
@@ -275,13 +282,13 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-10.1';
-let D = {backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-11.2';
+let D = {regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -305,9 +312,12 @@ async function load(){
     getAll('customer_pins','select=name_key,pin').catch(()=>[]),
     getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[]),
     getAll('tracker_items','select=*&order=due_date.asc').catch(()=>[]),
-    getAll('app_rates','select=key,data').catch(()=>[])
+    getAll('app_rates','select=key,data').catch(()=>[]),
+    getAll('reg_config','select=*').catch(()=>[]),
+    getAll('reg_checks','select=*').catch(()=>[])
   ]);
-  { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
+  { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile','vat'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
+  D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
   D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
@@ -439,6 +449,7 @@ function viewOverview(){
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
     <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
     <button class="alert-card ${hs.offToday.length?'warning':'good'}" id="alertOff"><span class="alert-symbol">🏖</span><span><strong>${hs.offToday.length}</strong><span>${hs.offToday.length?'Off today: '+hs.offToday.map(esc).join(', '):'Nobody off today'}</span></span></button>
+    ${regTotals().all.length?`<button class="alert-card ${regTotals().late?'danger':regTotals().outstanding?'warning':'good'}" id="alertReg"><span class="alert-symbol">☑</span><span><strong>${regTotals().outstanding}</strong><span>Crane checks outstanding${regTotals().late?' ('+regTotals().late+' missed)':''}</span></span></button>`:''}
     <button class="alert-card ${hs.starting.length||hs.pending?'warning':'good'}" id="alertHol"><span class="alert-symbol">📅</span><span><strong>${hs.starting.length}</strong><span>Holidays starting within 14 days${hs.pending?' · '+hs.pending+' to approve':''}</span></span></button>
   </div>
   <div class="tiles">
@@ -449,6 +460,7 @@ function viewOverview(){
     <div class="tile"><b>${D.reports.length}</b><span>Reports loaded</span></div>
   </div>
   ${offCard(14)}
+  ${regCard()}
   <div class="overview-lower">
     <div class="card"><h2>Upcoming by engineer <span class="mute small">Overdue + next 30 days</span></h2>
     ${Object.keys(engs).length?`<div class="wrap"><table><thead><tr><th>Engineer</th><th class="r">Overdue</th><th class="r">Due in 30 days</th></tr></thead><tbody>${Object.keys(engs).sort().map(e=>`<tr><td>${esc(e)}</td><td class="r">${engs[e].o?`<span class="pill red">${engs[e].o}</span>`:'–'}</td><td class="r">${engs[e].s||'–'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state">No due dates found in the loaded reports. Equipment only appears here when a report has a next-due date.</div>'}
@@ -466,7 +478,7 @@ function viewOverview(){
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertReg','register']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -506,6 +518,7 @@ function viewToday(){
   const progBody=d.prog.length?`<table><tr><th>Job</th><th>Customer / site</th><th>Type</th><th>Engineers</th></tr>${d.prog.map(j=>{const x=j.data;return `<tr><td>${esc(x.job||j.id)}</td><td>${esc(x.customerName||x.customer||'')}<div class="mute small">${esc(x.site||'')}</div></td><td>${esc(x.type||'')}</td><td>${esc((x.engineers||[]).map(d.canon).join(', '))}</td></tr>`;}).join('')}</table>`:none('No jobs in progress.');
   $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting · ${holSummary().offToday.length} off today</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
     offCard(14)+
+    regCard()+
     sec('Services, inspections &amp; LOLER — overdue and next 14 days',d.due.length,dueBody)+
     sec('Urgent repairs outstanding',d.urgent.length,urgBody)+
     sec('Purchase orders awaiting approval',d.pend.length,poBody)+
@@ -652,13 +665,13 @@ function ratesCard(){
   const f=(k,l,st)=>`<label class="small" style="display:block">${l}<input id="rt_${k}" type="number" min="0" step="${st}" inputmode="decimal" value="${RATES[k]}" style="width:100%"></label>`;
   return `<details class="card"${ratesSet?'':' open'}><summary><b>Charge-out rates</b> <span class="mute small">${ratesSet?'£'+RATES.nt+' / £'+RATES.ot+' / £'+RATES.dt+' per hour · call-out £'+RATES.callout+' · £'+RATES.mile+' a mile':'not set yet'}</span></summary>
     <p class="small mute" style="margin:8px 0">One set of rates for every engineer's job sheet. Kept in the private database. Only office admins can see or change them.</p>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${f('nt','Normal time £/hr',0.01)}${f('ot','Overtime 1 £/hr',0.01)}${f('dt','Overtime 2 £/hr',0.01)}${f('callout','Call-out £ (per job)',0.01)}${f('mile','Mileage £/mile',0.001)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${f('nt','Normal time £/hr',0.01)}${f('ot','Overtime 1 £/hr',0.01)}${f('dt','Overtime 2 £/hr',0.01)}${f('callout','Call-out £ (per job)',0.01)}${f('mile','Mileage £/mile',0.001)}${f('vat','VAT % (used by the Job Manager invoices)',0.1)}</div>
     <p style="margin:10px 0 0"><button class="primary" id="rtSave">Save rates</button> <span id="rtMsg" class="small mute"></span></p></details>`;
 }
 function bindRates(){
   const b=$('rtSave'); if(!b) return;
   b.onclick=async()=>{
-    const data={}; for(const k of ['nt','ot','dt','callout','mile']){ const v=parseFloat($('rt_'+k).value); if(!(v>=0)){ $('rtMsg').textContent='Check the '+k+' box — it needs a number.'; return; } data[k]=v; }
+    const data={}; for(const k of ['nt','ot','dt','callout','mile','vat']){ const v=parseFloat($('rt_'+k).value); if(!(v>=0)){ $('rtMsg').textContent='Check the '+k+' box — it needs a number.'; return; } data[k]=v; }
     b.disabled=true; $('rtMsg').textContent='Saving…';
     try{ await api('/rest/v1/app_rates?on_conflict=key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'charge',data,updated_at:new Date().toISOString(),updated_by:(store.get('session')||{}).uid})}); await load(); render(); }
     catch(e){ $('rtMsg').textContent='Could not save: '+e.message; b.disabled=false; }
@@ -1399,8 +1412,155 @@ function viewBackups(){
   if(!D.backupsLoading){ D.backupsLoading=true; loadBackups().then(()=>{ D.backupsLoading=false; if(tab==='backups') draw(); }); }
 }
 
+// ---------- crane check register: weekly + monthly checks, ticked off here or automatically from inspection reports ----------
+const regKey = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let regCust='', regWeekFrom='', regYear=new Date().getFullYear();
+function isoWeekOf(dateIso){
+  const mon=monday(dateIso), thu=parse(addDays(mon,3)), y=thu.getFullYear();
+  const wk1=monday(y+'-01-04'); const n=Math.round((parse(mon)-parse(wk1))/6048e5)+1;
+  return {key:y+'-W'+String(n).padStart(2,'0'), mon, n, y};
+}
+// which crane groups are checked in month i (0-11): rotation entries can be one group name or a list of them
+const monthGroups = (cfg,i) => { const r=(cfg.rotation||[])[i]; return Array.isArray(r)?r.filter(Boolean):(r?[r]:[]); };
+function groupCranes(cfg,groups){ const seen=new Set(), out=[]; groups.forEach(g=>((cfg.groups||{})[g]||[]).forEach(c=>{ if(!seen.has(regKey(c))){ seen.add(regKey(c)); out.push(c); } })); return out; }
+function weekRange(mon){ return [mon, addDays(mon,6)]; }
+function monthRange(ym){ const [y,m]=ym.split('-').map(Number); return [ym+'-01', iso(new Date(y,m,0))]; }
+function regCfgs(){ return D.regCfg.map(r=>Object.assign({customer:r.customer},r.data||{})); }
+function regIndexes(){
+  if(D._regFor===D.reports&&D._regChecksFor===D.regChecks&&D._regIdx) return D._regIdx;
+  const manual=new Map(); D.regChecks.forEach(r=>manual.set(nk(r.customer)+'|'+regKey(r.crane)+'|'+r.period,r));
+  const auto=new Map();   // customer|crane -> [report dates of inspections], newest first (reports arrive newest first)
+  D.reports.forEach(r=>{ if(!/insp/i.test(r.visit_type||'')) return; const k=nk(r.customer)+'|'+regKey(r.crane_no); if(!auto.has(k)) auto.set(k,[]); auto.get(k).push(r); });
+  D._regFor=D.reports; D._regChecksFor=D.regChecks; D._regIdx={manual,auto}; return D._regIdx;
+}
+// state of one crane in one period: done / late / open / future / na
+function regCell(cfg,crane,kind,period){
+  const {manual,auto}=regIndexes(), ck=nk(cfg.customer)+'|'+regKey(crane);
+  const row=manual.get(ck+'|'+period)||null;
+  const [a,b]=kind==='weekly'?weekRange(parseWeekKey(period)):monthRange(period);
+  let scheduled=true;
+  if(kind==='monthly') scheduled=groupCranes(cfg,monthGroups(cfg,+period.slice(5,7)-1)).some(c=>regKey(c)===regKey(crane));
+  const ar=(auto.get(ck)||[]).find(r=>r.report_date>=a&&r.report_date<=b)||null;
+  const doneOn=(row&&row.done_on)||(ar&&ar.report_date)||'';
+  const out={row,auto:ar,doneOn,a,b,sent:!!(row&&row.report_sent),shut:!!(row&&row.shutdown)};
+  if(doneOn) return Object.assign(out,{st:'done'});
+  if(row&&row.na) return Object.assign(out,{st:'na'});
+  if(!scheduled) return Object.assign(out,{st:'na'});
+  if(cfg.start&&(kind==='weekly'?a<cfg.start:b<cfg.start)) return Object.assign(out,{st:'na',before:true});
+  const t=todayIso();
+  return Object.assign(out,{st:b<t?'late':a<=t?'open':'future'});
+}
+function parseWeekKey(k){ const m=/^(\d{4})-W(\d{2})$/.exec(k); const wk1=monday(m[1]+'-01-04'); return addDays(wk1,(+m[2]-1)*7); }
+const weekLabel = mon => 'Week '+isoWeekOf(mon).n+' ('+fmtShort(mon)+' – '+fmtShort(addDays(mon,6))+')';
+const fmtShort = s => parse(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+function monthCranes(cfg){ const seen=new Set(), out=[]; Object.keys(cfg.groups||{}).forEach(g=>(cfg.groups[g]||[]).forEach(c=>{ if(!seen.has(regKey(c))){ seen.add(regKey(c)); out.push({crane:c,group:g}); } })); return out; }
+// everything that still needs doing for one customer: this week, this month, and anything missed since the register started
+function regSummary(cfg){
+  const t=todayIso(), wk=isoWeekOf(t), ym=t.slice(0,7);
+  const weekly=(cfg.weekly||[]).map(c=>({crane:c,cell:regCell(cfg,c,'weekly',wk.key)}));
+  const grp=monthGroups(cfg,+ym.slice(5,7)-1).join(' + ');
+  const monthly=groupCranes(cfg,monthGroups(cfg,+ym.slice(5,7)-1)).map(c=>({crane:c,cell:regCell(cfg,c,'monthly',ym)}));
+  const late=[];
+  if(cfg.start){
+    for(let m=(monday(cfg.start)<cfg.start?addDays(monday(cfg.start),7):monday(cfg.start)); m<wk.mon && late.length<400; m=addDays(m,7)){ const k=isoWeekOf(m).key; (cfg.weekly||[]).forEach(c=>{ const x=regCell(cfg,c,'weekly',k); if(x.st==='late') late.push({crane:c,kind:'weekly',label:weekLabel(m),period:k}); }); }
+    for(let d=new Date(+cfg.start.slice(0,4),+cfg.start.slice(5,7)-1,1); iso(d).slice(0,7)<ym; d.setMonth(d.getMonth()+1)){ const k=iso(d).slice(0,7); monthCranes(cfg).forEach(({crane})=>{ const x=regCell(cfg,crane,'monthly',k); if(x.st==='late') late.push({crane,kind:'monthly',label:MONTHS[d.getMonth()]+' '+d.getFullYear(),period:k}); }); }
+  }
+  const openW=weekly.filter(x=>x.cell.st==='open'||x.cell.st==='late'), openM=monthly.filter(x=>x.cell.st==='open'||x.cell.st==='late');
+  return {cfg,wk,ym,grp,weekly,monthly,late,outstanding:openW.length+openM.length+late.length,openW,openM};
+}
+function regTotals(){ const all=regCfgs().map(regSummary); return {all,outstanding:all.reduce((n,x)=>n+x.outstanding,0),late:all.reduce((n,x)=>n+x.late.length,0)}; }
+function regChip(x){ const st=x.cell.st; const cls=st==='done'?'green':st==='na'?'grey':st==='late'?'red':'amber'; return `<span class="pill ${cls}">${esc(x.crane)} ${st==='done'?'✓':st==='na'?'–':st==='late'?'missed':'to do'}</span>`; }
+function regCard(){
+  const tot=regTotals(); if(!tot.all.length) return '';
+  return tot.all.map(x=>{
+    const wDone=x.weekly.filter(y=>y.cell.st==='done').length, mDone=x.monthly.filter(y=>y.cell.st==='done').length;
+    const lateBy={}; x.late.forEach(l=>{ (lateBy[l.label]=lateBy[l.label]||[]).push(l.crane); });
+    return `<div class="card"><h2>Crane checks — ${esc(x.cfg.customer)} <span class="mute small">${x.outstanding?x.outstanding+' outstanding':'all up to date'}</span></h2>
+      ${x.weekly.length?`<b>Weekly · ${esc(weekLabel(x.wk.mon))}</b> <span class="mute small">${wDone} of ${x.weekly.length} done</span><div class="regchips">${x.weekly.map(regChip).join('')}</div>`:''}
+      ${x.grp?`<b>Monthly · ${MONTHS[+x.ym.slice(5,7)-1]} (${esc(x.grp)})</b> <span class="mute small">${mDone} of ${x.monthly.length} done</span><div class="regchips">${x.monthly.map(regChip).join('')}</div>`:`<span class="mute">No monthly checks scheduled this month.</span>`}
+      ${x.late.length?`<b style="color:var(--red)">Missed earlier</b><div class="regchips">${Object.keys(lateBy).slice(-8).map(l=>`<span class="pill red">${esc(l)}: ${esc(lateBy[l].join(', '))}</span>`).join('')}</div>`:''}
+      <button data-gotab="register">Open the register</button></div>`; }).join('');
+}
+
+function viewRegister(){
+  const cfgs=regCfgs(), admin=portalOK();
+  if(!cfgs.length){ $('v-register').innerHTML='<div class="card"><h2>Crane check register</h2><span class="mute">No register is set up yet.</span>'+(admin?' <p><button class="primary" id="regAdd">Set up a customer</button></p>':'')+'</div>'; if(admin&&$('regAdd')) $('regAdd').onclick=regNewCustomer; return; }
+  if(!cfgs.some(c=>c.customer===regCust)) regCust=cfgs[0].customer;
+  const cfg=cfgs.find(c=>c.customer===regCust), sum=regSummary(cfg), t=todayIso(), wk=isoWeekOf(t);
+  if(!regWeekFrom) regWeekFrom=addDays(wk.mon,-7*8);
+  const weeks=[]; for(let i=0;i<13;i++) weeks.push(addDays(regWeekFrom,7*i));
+  const cell=(x,kind,period,crane)=>{ const sym=x.st==='done'?'✓':x.st==='late'?'!':x.st==='open'?'•':x.st==='na'?'–':''; const sub=x.st==='done'?(x.sent?'sent':(x.auto&&!x.row?'auto':'')):(x.shut?'S/D':''); return `<td class="rc ${x.st}" data-rc="${esc(kind)}|${esc(crane)}|${esc(period)}" title="${esc(crane)} · ${esc(period)}">${sym}${sub?`<small>${sub}</small>`:''}</td>`; };
+  const wTable=(cfg.weekly||[]).length?`<div class="wrap"><table class="regtab"><tr><th>Crane</th>${weeks.map(m=>{ const w=isoWeekOf(m); return `<th ${m===wk.mon?'style="color:var(--accent)"':''}>W${w.n}<div class="mute small" style="font-weight:600">${fmtShort(m)}</div></th>`; }).join('')}</tr>
+    ${cfg.weekly.map(c=>`<tr><td><b>${esc(c)}</b></td>${weeks.map(m=>cell(regCell(cfg,c,'weekly',isoWeekOf(m).key),'weekly',isoWeekOf(m).key,c)).join('')}</tr>`).join('')}</table></div>`:'<span class="mute">No weekly cranes.</span>';
+  const mc=monthCranes(cfg);
+  const mTable=mc.length?`<div class="wrap"><table class="regtab"><tr><th>${regYear}</th>${mc.map(x=>`<th>${esc(x.crane)}</th>`).join('')}</tr>
+    ${MONTHS.map((n,i)=>{ const ym=regYear+'-'+String(i+1).padStart(2,'0'), g=monthGroups(cfg,i).join('+'); return `<tr><td><b>${n.slice(0,3)}</b> <span class="mute small">${esc(g)}</span></td>${mc.map(x=>cell(regCell(cfg,x.crane,'monthly',ym),'monthly',ym,x.crane)).join('')}</tr>`; }).join('')}</table></div>`:'<span class="mute">No monthly cranes.</span>';
+  const sel=cfgs.length>1?`<p style="display:flex;gap:6px;flex-wrap:wrap">${cfgs.map(c=>`<button data-rcust="${esc(c.customer)}" class="${c.customer===regCust?'primary':''}">${esc(c.customer)}</button>`).join('')}</p>`:'';
+  $('v-register').innerHTML=`${sel}<div class="card"><h2>Crane check register — ${esc(cfg.customer)} <span class="mute small">${sum.outstanding?sum.outstanding+' outstanding':'all up to date'}</span></h2>
+    <p class="small mute" style="margin:0 0 8px">Tap a square to record a check. ✓ done · <b>!</b> missed · • due this period · – not required. Squares tick themselves when an <b>Inspection</b> report for that crane is saved in the report app (shown as “auto”). Counting starts from ${esc(uk(cfg.start)||'the beginning')}.</p></div>
+    <div class="card"><h2>Weekly checks</h2><p style="margin:0 0 8px"><button id="rwPrev">◀ 4 weeks</button> <button id="rwNow">This week</button> <button id="rwNext">4 weeks ▶</button></p>${wTable}</div>
+    <div class="card"><h2>Monthly checks</h2><p style="margin:0 0 8px"><button id="ryPrev">◀</button> <b>${regYear}</b> <button id="ryNext">▶</button></p>${mTable}</div>
+    ${admin?regSetupHtml(cfg):''}`;
+  const R=$('v-register');
+  R.querySelectorAll('[data-rcust]').forEach(b=>b.onclick=()=>{ regCust=b.dataset.rcust; viewRegister(); });
+  R.querySelectorAll('td[data-rc]').forEach(td=>td.onclick=()=>{ const [k,c,p]=td.dataset.rc.split('|'); regEdit(cfg,c,k,p); });
+  $('rwPrev').onclick=()=>{ regWeekFrom=addDays(regWeekFrom,-28); viewRegister(); }; $('rwNext').onclick=()=>{ regWeekFrom=addDays(regWeekFrom,28); viewRegister(); }; $('rwNow').onclick=()=>{ regWeekFrom=addDays(wk.mon,-56); viewRegister(); };
+  $('ryPrev').onclick=()=>{ regYear--; viewRegister(); }; $('ryNext').onclick=()=>{ regYear++; viewRegister(); };
+  if(admin) bindRegSetup(cfg);
+}
+function regEdit(cfg,crane,kind,period){
+  const x=regCell(cfg,crane,kind,period), label=kind==='weekly'?weekLabel(parseWeekKey(period)):MONTHS[+period.slice(5,7)-1]+' '+period.slice(0,4);
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card"><h2>${esc(crane)} <span class="mute small">${esc(label)}</span></h2>
+   ${x.auto&&!(x.row&&x.row.done_on)?`<div class="note">Ticked automatically from inspection report ${esc(x.auto.report_no||'')} dated ${uk(x.auto.report_date)}.</div>`:''}
+   <label class="small">Check done on<input type="date" id="reD" value="${esc((x.row&&x.row.done_on)||'')}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px"><input type="checkbox" id="reS" ${x.sent?'checked':''}> Report sent to the customer</label>
+   ${kind==='weekly'?`<label class="small" style="display:block;margin-top:4px"><input type="checkbox" id="reSD" ${x.shut?'checked':''}> Shutdown needed</label>`:''}
+   <label class="small" style="display:block;margin-top:4px"><input type="checkbox" id="reNA" ${x.row&&x.row.na?'checked':''}> Not required this period</label>
+   <label class="small" style="display:block;margin-top:8px">Note<input id="reN" value="${esc((x.row&&x.row.note)||'')}" style="width:100%"></label>
+   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="reSave">Save</button><button id="reToday">Done today</button>${x.row?'<button id="reClear">Clear</button>':''}<button id="reX">Cancel</button></p><div id="reMsg" class="small mute"></div></div>`;
+  document.body.appendChild(m);
+  const close=()=>m.remove(), $$=i=>m.querySelector('#'+i);
+  m.onclick=e=>{ if(e.target===m) close(); }; $$('reX').onclick=close;
+  $$('reToday').onclick=()=>{ $$('reD').value=todayIso(); };
+  const call=async(fn)=>{ $$('reMsg').textContent='Saving…'; try{ await fn(); D.regChecks=await getAll('reg_checks','select=*'); close(); render(); }catch(e){ $$('reMsg').textContent='Could not save: '+e.message; } };
+  $$('reSave').onclick=()=>call(async()=>{ const body={customer:cfg.customer,crane,period,done_on:$$('reD').value||null,report_sent:$$('reS').checked,shutdown:$$('reSD')?$$('reSD').checked:false,na:$$('reNA').checked,note:$$('reN').value.trim()||null,updated_at:new Date().toISOString()};
+    const r=await api('/rest/v1/reg_checks?on_conflict=customer,crane,period',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); });
+  if($$('reClear')) $$('reClear').onclick=()=>call(async()=>{ const r=await api('/rest/v1/reg_checks?customer=eq.'+encodeURIComponent(cfg.customer)+'&crane=eq.'+encodeURIComponent(x.row.crane)+'&period=eq.'+encodeURIComponent(period),{method:'DELETE'}); if(!r.ok) throw new Error(await r.text()); });
+}
+function regSetupHtml(cfg){
+  const gnames=Object.keys(cfg.groups||{});
+  return `<details class="card"><summary><b>Register setup</b> <span class="mute small">cranes, monthly rotation, start date (office admins)</span></summary>
+   <p class="small mute" style="margin:8px 0">Separate crane names with commas. Tick which groups of cranes are checked in each month.</p>
+   <label class="small">Counting starts from<input type="date" id="rsStart" value="${esc(cfg.start||'')}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px">Weekly cranes<input id="rsWeekly" value="${esc((cfg.weekly||[]).join(', '))}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px">Monthly groups (one per line, like <b>PL: PL1, PL2</b>)<textarea id="rsGroups" rows="4" style="width:100%">${esc(gnames.map(g=>g+': '+(cfg.groups[g]||[]).join(', ')).join('\n'))}</textarea></label>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px">${MONTHS.map((n,i)=>`<div class="small"><b>${n}</b><br>${gnames.map(g=>`<label style="display:inline-block;margin-right:8px"><input type="checkbox" data-rot="${i}" data-g="${esc(g)}" ${monthGroups(cfg,i).includes(g)?'checked':''}> ${esc(g)}</label>`).join('')}</div>`).join('')}</div>
+   <p style="margin:12px 0 0"><button class="primary" id="rsSave">Save setup</button> <button id="regAdd">Add another customer</button> <span id="rsMsg" class="small mute"></span></p>
+   <p class="small mute" style="margin:8px 0 0">After changing the group names, save once and then tick the months again.</p></details>`;
+}
+function bindRegSetup(cfg){
+  const list=s=>String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+  $('regAdd').onclick=regNewCustomer;
+  $('rsSave').onclick=async()=>{
+    const groups={}; $('rsGroups').value.split('\n').forEach(l=>{ const i=l.indexOf(':'); if(i<1) return; const g=l.slice(0,i).trim(); if(g) groups[g]=list(l.slice(i+1)); });
+    const rotation=MONTHS.map((n,i)=>[...document.querySelectorAll('input[data-rot="'+i+'"]')].filter(c=>c.checked&&groups[c.dataset.g]).map(c=>c.dataset.g));
+    const data={start:$('rsStart').value||null,weekly:list($('rsWeekly').value),groups,rotation};
+    $('rsMsg').textContent='Saving…';
+    try{ const r=await api('/rest/v1/reg_config?on_conflict=customer',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({customer:cfg.customer,data,updated_at:new Date().toISOString()})}); if(!r.ok) throw new Error(await r.text()); D.regCfg=await getAll('reg_config','select=*'); render(); }
+    catch(e){ $('rsMsg').textContent='Could not save: '+e.message; }
+  };
+}
+async function regNewCustomer(){
+  const name=(prompt('Customer name, exactly as it appears on their reports:')||'').trim(); if(!name) return;
+  try{ const r=await api('/rest/v1/reg_config?on_conflict=customer',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({customer:name,data:{start:todayIso().slice(0,8)+'01',weekly:[],groups:{},rotation:Array(12).fill([])}})}); if(!r.ok) throw new Error(await r.text()); D.regCfg=await getAll('reg_config','select=*'); regCust=name; render(); }
+  catch(e){ alert('Could not add: '+e.message); }
+}
+document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-gotab]'); if(b){ tab=b.dataset.gotab; store.set('tab',tab); render(); window.scrollTo({top:0}); } });
+
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
+const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['register','Crane checks'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
   if(tab==='visits') tab='bookings';
   if((tab==='portals'||tab==='backups')&&!portalOK()) tab='overview';
@@ -1411,7 +1571,7 @@ function render(){
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
   $('v-visits').classList.toggle('hide',!(tab==='bookings'&&portalOK()));
   if(tab==='bookings'&&portalOK()) viewVisits();
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,backups:viewBackups})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,register:viewRegister,backups:viewBackups})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
