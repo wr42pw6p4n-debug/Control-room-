@@ -21,10 +21,12 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:15px clamp(14px,3vw,32px);display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20;box-shadow:0 5px 20px rgba(0,0,0,.16);border-bottom:4px solid var(--accent)}
-header h1{font-size:19px;letter-spacing:.2px;margin:0;flex:1;min-width:190px;font-weight:800}
-header h1:before{content:"KE";display:inline-grid;place-items:center;width:36px;height:36px;margin-right:11px;background:var(--accent);color:#111c29;border-radius:10px;font-size:13px;font-weight:950;vertical-align:middle;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
-header .who{color:#d1dbe6;font-size:12px}
+header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:8px clamp(14px,3vw,32px);display:flex;align-items:center;gap:10px;flex-wrap:nowrap;border-bottom:3px solid var(--accent)}
+header h1{font-size:16px;letter-spacing:.2px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800}
+header h1:before{content:"KE";display:inline-grid;place-items:center;width:30px;height:30px;margin-right:9px;background:var(--accent);color:#111c29;border-radius:10px;font-size:13px;font-weight:950;vertical-align:middle;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+header .who{color:#aebccb;font-size:11px;white-space:nowrap}
+header #synced{display:none}
+header button{padding:6px 11px;font-size:13px}
 button,select,input{font:inherit;color:inherit}
 button{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 button:hover{transform:translateY(-1px);box-shadow:0 5px 13px rgba(0,0,0,.1);border-color:var(--accent)}
@@ -33,8 +35,8 @@ header button{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.22
 header button:hover{background:rgba(255,255,255,.16)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#172334;font-weight:800}
 button:disabled{opacity:.5;cursor:default;transform:none;box-shadow:none}
-nav{display:flex;gap:5px;padding:8px clamp(10px,3vw,32px) 0;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:70px;z-index:15;box-shadow:0 3px 10px rgba(18,35,54,.04)}
-nav button{border:0;border-bottom:3px solid transparent;border-radius:10px 10px 0 0;background:none;padding:12px 15px;white-space:nowrap;color:var(--mute);box-shadow:none;font-weight:650}
+nav{display:flex;gap:5px;padding:8px clamp(10px,3vw,32px) 0;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:15;box-shadow:0 3px 10px rgba(18,35,54,.04)}
+nav button{border:0;border-bottom:3px solid transparent;border-radius:10px 10px 0 0;background:none;padding:10px 11px;font-size:14px;white-space:nowrap;color:var(--mute);box-shadow:none;font-weight:650}
 nav button:hover{transform:none;box-shadow:none;background:var(--bg)}
 nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:850;background:linear-gradient(0deg,rgba(242,169,0,.12),transparent)}
 nav .n{display:inline-block;min-width:21px;padding:1px 7px;margin-left:7px;border-radius:99px;background:var(--line);font-size:11px;text-align:center;font-weight:800}
@@ -58,6 +60,24 @@ tbody tr:hover,table tr:hover td{background:rgba(242,169,0,.045)}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .wrap{overflow:auto;border-radius:10px}
 .pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:850;letter-spacing:.035em;white-space:nowrap}
+.dgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}.dgrid .dh{font-size:11px;font-weight:800;color:var(--mute);text-align:center;text-transform:uppercase}
+.dcell{min-height:86px;border:1px solid var(--line);border-radius:9px;padding:5px;background:var(--card);cursor:pointer;overflow:hidden;font-size:11px;text-align:left;display:block;width:100%}.dcell.out{opacity:.45}.dcell.today{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}.dcell b{display:block;font-size:12px;margin-bottom:2px}
+.dcell .de{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 4px;margin-top:2px;background:rgba(242,169,0,.22)}.dcell .de.Meeting{background:rgba(60,120,255,.2)}.dcell .de.Engineer{background:rgba(20,170,90,.22)}.dcell .de.done{text-decoration:line-through;opacity:.6}
+.dday{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card)}.dday.today{border-color:var(--accent)}.dentry{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-top:1px solid var(--line);cursor:pointer}.dentry:first-of-type{border-top:0}.dentry .tm{min-width:48px;font-weight:800}.dentry.done .tt{text-decoration:line-through;opacity:.6}
+@media(max-width:720px){.dcell{min-height:56px;font-size:10px}.dcell .de{display:none}.dcell .dn{display:inline-block;background:var(--accent);color:#172334;border-radius:8px;padding:0 5px;font-weight:800}}
+.regtab td,.regtab th{padding:6px 5px;text-align:center;white-space:nowrap}.regtab td:first-child,.regtab th:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1}
+.rc{min-width:34px;cursor:pointer;font-weight:800;border-radius:6px;user-select:none}
+.rc.done{background:rgba(20,170,90,.25);color:var(--green)}.rc.late{background:rgba(220,50,40,.25);color:var(--red)}.rc.open{background:rgba(245,170,0,.28);color:var(--amber)}.rc.na{color:var(--mute);opacity:.55;background:rgba(128,128,128,.10)}.rc.future{color:var(--mute);border:1px dashed var(--line)}
+.rc small{display:block;font-size:9px;font-weight:700;line-height:1}
+.regchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.regmodal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:grid;place-items:center;padding:14px}.regmodal .card{max-width:420px;width:100%;margin:0}
+.custwrap{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
+.custlist{position:sticky;top:8px;margin-bottom:0}.custlist input{width:100%;margin-bottom:10px}
+.custrows{display:flex;flex-direction:column;gap:6px;max-height:68vh;overflow:auto}
+.custrow{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;text-align:left;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:inherit;cursor:pointer;font:inherit}
+.custrow.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}.custrow b{flex:1 1 100%}
+.custhead h2{margin:0 0 4px}
+@media(max-width:820px){.custwrap{grid-template-columns:1fr}.custlist{position:static}.custrows{max-height:240px}}
 .pill.red{background:var(--redbg);color:var(--red)}.pill.amber{background:var(--ambbg);color:var(--amber)}.pill.green{background:var(--grnbg);color:var(--green)}.pill.grey{background:var(--line);color:var(--mute)}
 .bar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:16px;background:var(--card);border:1px solid var(--line);padding:12px;border-radius:14px;box-shadow:var(--shadow)}
 .bar .sp{flex:1}
@@ -75,12 +95,13 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 #msg:empty{display:none}
 
 /* Control-room layer */
-.commandbar{display:grid;grid-template-columns:minmax(220px,1.5fr) minmax(150px,.7fr);gap:12px;margin:0 0 18px}
+.commandbar{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 14px}
 .command-search{position:relative;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:10px 13px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px}
 .command-search .search-icon{font-size:20px;color:var(--accent-dark)}
 .command-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;padding:7px 0}
 .command-search .hint{font-size:10px;color:var(--mute);white-space:nowrap;border:1px solid var(--line);padding:3px 6px;border-radius:5px}
-.command-status{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:15px;padding:12px 15px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
+.command-status{display:none}
+.command-status-old{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:15px;padding:12px 15px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
 .command-status .status-dot{width:10px;height:10px;border-radius:50%;background:#62d995;box-shadow:0 0 0 5px rgba(98,217,149,.14);flex-shrink:0}
 .command-status b{display:block;font-size:12px}.command-status span{display:block;color:#c8d4e1;font-size:11px}
 .search-results{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin:-8px 0 18px;overflow:hidden}
@@ -116,11 +137,11 @@ details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 @media(max-width:700px){.commandbar{grid-template-columns:1fr}.overview-lower{grid-template-columns:1fr}.search-results .result{grid-template-columns:70px minmax(0,1fr)}.search-results .result-go{display:none}.control-hero{padding:19px}.control-hero:after{right:-170px}}
 
 @media(max-width:700px){
- header{top:0;padding:12px;gap:8px}header h1{font-size:16px;min-width:145px}
- header h1:before{width:31px;height:31px;margin-right:7px}
- header .who{font-size:11px}
- nav{top:60px;padding-left:8px;padding-right:8px}
- nav button{padding:11px 12px}
+ header{padding:8px 10px;gap:6px}header h1{font-size:15px}
+ header h1:before{width:28px;height:28px;margin-right:7px}
+ header .who{display:none}
+ nav{top:0;padding-left:6px;padding-right:6px}
+ nav button{padding:10px 10px}
  main{padding:10px}
  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
  .tile{padding:14px 12px;min-height:100px}
@@ -153,7 +174,6 @@ tr.hsoon td{background:var(--ambbg)}
  main{max-width:none;padding:0}
  .card,.tile{box-shadow:none;break-inside:avoid;border-color:#bbb}
 }
-@media print{body.raPrinting>*:not(#raOv){display:none!important}body.raPrinting #raOv{position:static!important;background:#fff!important;padding:0!important}body.raPrinting #raOv #raPrint,body.raPrinting #raOv #raClose{display:none}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 </head>
@@ -194,19 +214,21 @@ tr.hsoon td{background:var(--ambbg)}
     <div id="msg"></div>
     <section id="v-overview"></section>
     <section id="v-today" class="hide"></section>
+    <section id="v-visits" class="hide"></section>
     <section id="v-bookings" class="hide"></section>
     <section id="v-week" class="hide"></section>
     <section id="v-due" class="hide"></section>
     <section id="v-repairs" class="hide"></section>
     <section id="v-po" class="hide"></section>
-    <section id="v-quotes" class="hide"></section>
-    <section id="v-ras" class="hide"></section>
     <section id="v-folders" class="hide"></section>
     <section id="v-hols" class="hide"></section>
     <section id="v-portals" class="hide"></section>
     <section id="v-chat" class="hide"></section>
     <section id="v-fleet" class="hide"></section>
-    <section id="v-visits" class="hide"></section>
+    <section id="v-customers" class="hide"></section>
+    <section id="v-register" class="hide"></section>
+    <section id="v-diary" class="hide"></section>
+    <section id="v-backups" class="hide"></section>
   </main>
 </div>
 
@@ -214,7 +236,9 @@ tr.hsoon td{background:var(--ambbg)}
 // Same Supabase project as the Crane Service Report, Job Manager and KEPO apps.
 // The publishable key is meant to be public — row-level security in Supabase is what protects the data.
 const SB = {url:'https://eyerpokgadrgxticqzez.supabase.co', key:'sb_publishable_FsyUdlUOTgA51pkAy5pNiA_AsHqq6Ed'};
-const RATES = {nt:50, ot:64, dt:73, callout:100, mile:0.70};   // normal, OT1, OT2, call-out, per mile
+// Charge-out rates are kept in the private database (table app_rates, office admins only), NOT in this public page. Set them on the invoice worksheet.
+const RATES = {nt:0, ot:0, dt:0, callout:0, mile:0, vat:0};   // normal, OT1, OT2, call-out, per mile
+let ratesSet = false;
 const KINDS = {Service:'Service', Inspection:'Inspection', LOLER:'LOLER'};
 
 const $ = id => document.getElementById(id);
@@ -264,12 +288,13 @@ async function getAll(table, query){
   } return out;
 }
 
-let D = {bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-12.1';
+let D = {diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks, diary] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -290,21 +315,26 @@ async function load(){
     getAll('bank_holiday_work','select=*&order=worked_date.desc').catch(()=>[]),
     getAll('fleet_checks','select=*&order=due_date.asc').catch(()=>[]),
     getAll('visit_requests','select=*&order=created_at.desc').catch(()=>[]),
-    getAll('customer_pins','select=name_key,pin').catch(()=>[])
+    getAll('customer_pins','select=name_key,pin').catch(()=>[]),
+    getAll('staff_phones','select=name,phone&order=sort_order.asc,name.asc').catch(()=>[]),
+    getAll('tracker_items','select=*&order=due_date.asc').catch(()=>[]),
+    getAll('app_rates','select=key,data').catch(()=>[]),
+    getAll('reg_config','select=*').catch(()=>[]),
+    getAll('reg_checks','select=*').catch(()=>[]),
+    getAll('diary_entries','select=*&order=entry_date.asc').catch(()=>[])
   ]);
+  { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile','vat'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
+  D.diary = diary||[]; D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
-  D.portals = portals; D.fleet = fleet; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
+  D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
   D.custs = (prof[0]&&prof[0].role==='admin')?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
-  D.poAdmin = await api('/rest/v1/rpc/po_is_admin',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.json()).then(v=>v===true).catch(()=>false);
-  D.quotes = await getAll('quote_requests','select=id,created_at,requested_by,engineer_name,customer,site,contact_name,contact_phone,contact_email,work_type,equipment,description,urgency,needed_by,status,quote_ref,office_note,status_updated_at&order=created_at.desc').catch(()=>[]);
-  D.ras = await getAll('risk_assessments','select=id,ref,job_no,site,assessed_by,created_at,updated_at&order=updated_at.desc').catch(()=>[]);
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
   if(D.jobsBlocked) $('msg').innerHTML += '<div class="note">This login can\'t see job sheets. Add the office user to the Job Manager members list in Supabase (table <b>js_members</b>).</div>';
-  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD; $('refresh').title=$('synced').textContent; $('refresh').textContent='↻ '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 
 // ---------- engineer names (Job Manager uses "Dave" and "Dave Boler" for the same person) ----------
@@ -338,10 +368,22 @@ function weekJobs(start){
   rows.sort((a,b)=> String(a.job).localeCompare(String(b.job)));
   return rows;
 }
-function dueList(){
+const nk = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+let _eqMap=null,_eqFor=null;
+function eqCanon(){
+  if(_eqFor===D.reports&&_eqMap) return _eqMap;
+  const g=new Map(); D.reports.forEach(r=>{ if(!nk(r.crane_no)) return; const k=nk(r.customer)+'|'+nk(r.crane_no); if(!g.has(k)) g.set(k,new Set()); g.get(k).add(nk(r.id_no)); });
+  const map=new Map();
+  g.forEach((ids,k)=>{ const reps=[]; [...ids].filter(Boolean).sort((a,b)=>b.length-a.length).forEach(id=>{ if(!reps.some(rp=>rp.includes(id))) reps.push(id); });
+    ids.forEach(id=>map.set(k+'|'+id, id?(reps.find(rp=>rp.includes(id))||id):(reps.length===1?reps[0]:''))); });
+  _eqMap=map; _eqFor=D.reports; return map;
+}
+// one key per physical crane: customer + crane no + ID, where an ID that is part of a longer ID for the same crane counts as the same
+function eqKeyR(r){ const c=nk(r.crane_no), base=nk(r.customer)+'|'+c; if(!c) return base+'|'+nk(r.id_no); const m=eqCanon().get(base+'|'+nk(r.id_no)); return base+'|'+(m==null?nk(r.id_no):m); }
+function dueList(withTracker=true){
   const canon=nameMap(), latest=new Map(), tod=parse(todayIso());
   D.reports.forEach(r=>{
-    const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|')+'|'+(r.visit_type||'Service');
+    const k=eqKeyR(r)+'|'+(r.visit_type||'Service');
     const p=latest.get(k);
     if(!p || (r.report_date||'')>(p.report_date||'')) latest.set(k,r);
   });
@@ -351,20 +393,24 @@ function dueList(){
     const dd=parse(due); if(!dd) return;
     out.push({r, kind:r.visit_type||'Service', iso:iso(dd), days:Math.round((dd-tod)/864e5), eng:canon(r.engineer)});
   });
+  if(withTracker) D.tracker.forEach(t=>{ const dd=parse(t.due_date); if(!dd) return; out.push({r:{customer:t.customer,crane_no:'',id_no:'',site:'',report_date:''}, kind:t.category, iso:iso(dd), days:Math.round((dd-tod)/864e5), eng:'Tracker', tracker:t}); });
   out.sort((a,b)=>a.days-b.days); return out;
 }
 function repairsList(){
   const canon=nameMap(), byEq=new Map(), cutoff=addDays(todayIso(),-30), open=[], done=[];
-  D.reports.forEach(r=>{ const k=[r.customer,r.crane_no,r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|'); if(!byEq.has(k)) byEq.set(k,[]); byEq.get(k).push(r); });
+  D.reports.forEach(r=>{ const k=eqKeyR(r); if(!byEq.has(k)) byEq.set(k,[]); byEq.get(k).push(r); });
   byEq.forEach(vs=>{
     vs.sort((a,b)=>(a.report_date||'').localeCompare(b.report_date||''));
     const latest=new Map();
     vs.forEach(r=>{ ((r.data&&r.data.items)||[]).forEach(it=>{ if(it&&it.label&&it.status) latest.set(slug(it.group)+'__'+slug(it.label),{r,it}); }); });
     latest.forEach(x=>{
       if(x.it.status!=='URGENT' && x.it.status!=='ATTN') return;
-      const key=((x.r.data&&x.r.data.reportNo)||x.r.report_no||x.r.id)+'|'+slug(x.it.group)+'__'+slug(x.it.label);
-      const comp=D.comps[key];
-      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp};
+      // The engineers' app files a completion under the report number OR the report id, sometimes with an "imp_" prefix (imported reports), so accept any of those.
+      const tail='|'+slug(x.it.group)+'__'+slug(x.it.label);
+      const bases=[x.r.data&&x.r.data.reportNo, x.r.report_no, x.r.id].filter(Boolean).map(String);
+      const hits=bases.flatMap(bs=>[bs,'imp_'+bs,bs.replace(/^imp_/,'')]).map(bs=>D.comps[bs+tail]).filter(Boolean).sort((p,q)=>String(q.done_date||'').localeCompare(String(p.done_date||'')));
+      const comp=hits[0];
+      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp,key:((x.r.data&&x.r.data.reportNo)||x.r.report_no||x.r.id)+tail};
       if(comp){ if((comp.done_date||'')>=cutoff) done.push(item); }
       else if(!(x.it.work&&String(x.it.work).trim())) open.push(item);
     });
@@ -374,7 +420,7 @@ function repairsList(){
 }
 
 // ---------- views ----------
-let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', tab = 'overview', foldersWeek = '';
+let invMode = false, weekStart = monday(todayIso()), dueWin = 30, dueEng = '', dueKind = '', dueSrc = '', dueQ = '', tab = 'overview', foldersWeek = '';
 
 function pill(days){ return days<0?`<span class="pill red">OVERDUE ${-days}d</span>`: days===0?'<span class="pill red">TODAY</span>': days<=7?`<span class="pill amber">${days}d</span>`:`<span class="pill grey">${days}d</span>`; }
 
@@ -409,6 +455,9 @@ function viewOverview(){
     <button class="alert-card ${urgent?'danger':'good'}" id="alertUrgent"><span class="alert-symbol">🔧</span><span><strong>${urgent}</strong><span>Urgent repairs</span></span></button>
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
     <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
+    <button class="alert-card ${hs.offToday.length?'warning':'good'}" id="alertOff"><span class="alert-symbol">🏖</span><span><strong>${hs.offToday.length}</strong><span>${hs.offToday.length?'Off today: '+hs.offToday.map(esc).join(', '):'Nobody off today'}</span></span></button>
+    <button class="alert-card ${diaryOverdue().length?'danger':diaryOn(todayIso()).length?'warning':'good'}" id="alertDiary"><span class="alert-symbol">📓</span><span><strong>${diaryOn(todayIso()).length}</strong><span>Diary today${diaryOverdue().length?' · '+diaryOverdue().length+' overdue reminder'+(diaryOverdue().length===1?'':'s'):''}</span></span></button>
+    ${regTotals().all.length?`<button class="alert-card ${regTotals().late?'danger':regTotals().outstanding?'warning':'good'}" id="alertReg"><span class="alert-symbol">☑</span><span><strong>${regTotals().outstanding}</strong><span>Crane checks outstanding${regTotals().late?' ('+regTotals().late+' missed)':''}</span></span></button>`:''}
     <button class="alert-card ${hs.starting.length||hs.pending?'warning':'good'}" id="alertHol"><span class="alert-symbol">📅</span><span><strong>${hs.starting.length}</strong><span>Holidays starting within 14 days${hs.pending?' · '+hs.pending+' to approve':''}</span></span></button>
   </div>
   <div class="tiles">
@@ -418,6 +467,9 @@ function viewOverview(){
     <div class="tile"><b>${gbp(wkTotal)}</b><span>Estimated weekly labour + mileage + call-outs</span></div>
     <div class="tile"><b>${D.reports.length}</b><span>Reports loaded</span></div>
   </div>
+  ${offCard(14)}
+  ${diaryCard()}
+  ${regCard()}
   <div class="overview-lower">
     <div class="card"><h2>Upcoming by engineer <span class="mute small">Overdue + next 30 days</span></h2>
     ${Object.keys(engs).length?`<div class="wrap"><table><thead><tr><th>Engineer</th><th class="r">Overdue</th><th class="r">Due in 30 days</th></tr></thead><tbody>${Object.keys(engs).sort().map(e=>`<tr><td>${esc(e)}</td><td class="r">${engs[e].o?`<span class="pill red">${engs[e].o}</span>`:'–'}</td><td class="r">${engs[e].s||'–'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state">No due dates found in the loaded reports. Equipment only appears here when a report has a next-due date.</div>'}
@@ -429,13 +481,13 @@ function viewOverview(){
         <button class="mini-action" id="quickWeek"><span class="mini-icon">👷</span><span><b>Weekly engineer jobs</b><small>Hours, mileage and estimated totals</small></span></button>
         <button class="mini-action" id="quickPO"><span class="mini-icon">🧾</span><span><b>Purchase orders</b><small>Review requests and approval status</small></span></button>
       </div>
-      <p class="mute small" style="margin:12px 0 0">Last data refresh: ${D.loaded?D.loaded.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'Not yet loaded'}</p>
+      <p class="mute small" style="margin:12px 0 0">Last data refresh: ${D.loaded?D.loaded.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/London'}):'Not yet loaded'}</p>
     </div>
   </div>`;
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertReg','register'],['alertDiary','diary']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -473,7 +525,10 @@ function viewToday(){
   const poBody=d.pend.length?`<table><tr><th>Engineer</th><th>Site / ref</th><th>Description</th><th class="r">Est.</th></tr>${d.pend.map(p=>`<tr><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.description)}</td><td class="r">${esc(p.est_value||'')}</td></tr>`).join('')}</table>`:none('None waiting.');
   const doneBody=d.done.length?`<table><tr><th>Date</th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Defects</th></tr>${d.done.map(r=>{const it=((r.data&&r.data.items)||[]).filter(Boolean),u=it.filter(i=>i.status==='URGENT').length,a=it.filter(i=>i.status==='ATTN').length;return `<tr><td>${uk(r.report_date)}</td><td>${esc(r.visit_type||'Service')}</td><td>${esc(r.customer)}</td><td>${esc(r.crane_no||'')}</td><td>${esc(d.canon(r.engineer))}</td><td>${u?`<span class="pill red">${u} urgent</span> `:''}${a?`<span class="pill amber">${a} attn</span>`:''}${u||a?'':'none'}</td></tr>`;}).join('')}</table>`:none('No services or inspections completed.');
   const progBody=d.prog.length?`<table><tr><th>Job</th><th>Customer / site</th><th>Type</th><th>Engineers</th></tr>${d.prog.map(j=>{const x=j.data;return `<tr><td>${esc(x.job||j.id)}</td><td>${esc(x.customerName||x.customer||'')}<div class="mute small">${esc(x.site||'')}</div></td><td>${esc(x.type||'')}</td><td>${esc((x.engineers||[]).map(d.canon).join(', '))}</td></tr>`;}).join('')}</table>`:none('No jobs in progress.');
-  $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
+  $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting · ${holSummary().offToday.length} off today</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
+    offCard(14)+
+    diaryCard()+
+    regCard()+
     sec('Services, inspections &amp; LOLER — overdue and next 14 days',d.due.length,dueBody)+
     sec('Urgent repairs outstanding',d.urgent.length,urgBody)+
     sec('Purchase orders awaiting approval',d.pend.length,poBody)+
@@ -509,6 +564,12 @@ function bookingText(b){
     (b.job_type||'')+(b.wanted_date?' - wanted '+uk(b.wanted_date):''), b.description].filter(Boolean).join('\n');
 }
 async function issueBooking(b, engId){
+  // people without their own login (Jordan, Ashleigh, Jono, Ricky) are chosen by name; the job goes out under the shared staff login and is sent by Text
+  if(String(engId||'').startsWith('name:')){
+    const nm=engId.slice(5), shared=D.people.find(x=>x.name==='keyengineeringstaff');
+    await patchBooking(b.id,{engineer_id:shared?shared.id:null,engineer_name:nm,status:'issued',issued_at:new Date().toISOString()});
+    return `Issued to ${nm}. They don't have their own login, so press Text on the booking to send it to their phone.`;
+  }
   const person=D.people.find(x=>x.id===engId);
   if(!person) throw new Error('Choose an engineer first');
   await patchBooking(b.id,{engineer_id:engId,engineer_name:cap(person.name),status:'issued',issued_at:new Date().toISOString()});
@@ -520,17 +581,18 @@ async function issueBooking(b, engId){
   return note;
 }
 async function textEngineer(b){
-  let num=D.phones[b.engineer_id];
+  const sp=D.staffPhones.find(x=>x.name===b.engineer_name);
+  let num=sp?sp.phone:D.phones[b.engineer_id];
   if(!num){
     num=(window.prompt('Mobile number for '+(b.engineer_name||'this engineer')+':')||'').replace(/[^0-9+]/g,'');
     if(!num) return;
-    await api('/rest/v1/engineer_phones?on_conflict=user_id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:b.engineer_id,phone:num})});
-    D.phones[b.engineer_id]=num;
+    if(sp){ await api('/rest/v1/staff_phones?on_conflict=name',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({name:sp.name,phone:num,updated_at:new Date().toISOString()})}); sp.phone=num; }
+    else { await api('/rest/v1/engineer_phones?on_conflict=user_id',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:b.engineer_id,phone:num})}); D.phones[b.engineer_id]=num; }
   }
   window.location.href='sms:'+num+'?&body='+encodeURIComponent(bookingText(b));
 }
 function viewBookings(){
-  const people=D.people, opt=(sel)=>people.map(x=>`<option value="${esc(x.id)}" ${x.id===sel?'selected':''}>${esc(cap(x.name))}</option>`).join('');
+  const people=D.people, opt=(sel,nm)=>people.filter(x=>x.name!=='keyengineeringstaff').map(x=>`<option value="${esc(x.id)}" ${x.id===sel&&!(nm&&D.staffPhones.some(s=>s.name===nm))?'selected':''}>${esc(cap(x.name))}</option>`).join('')+D.staffPhones.map(x=>`<option value="${esc('name:'+x.name)}" ${nm===x.name?'selected':''}>${esc(x.name)}</option>`).join('');
   const open=D.bookings.filter(b=>b.status==='booked');
   const out=D.bookings.filter(b=>b.status==='issued'||b.status==='accepted');
   const cutoff=addDays(todayIso(),-7);
@@ -541,7 +603,7 @@ function viewBookings(){
     <div class="small" style="margin:6px 0">${esc(b.description)}</div>
     <div class="mute small">${b.contact||b.phone?'Contact: '+esc([b.contact,b.phone].filter(Boolean).join(' · '))+' · ':''}Booked ${uk((b.created_at||'').slice(0,10))}${b.engineer_name?' · Engineer: '+esc(b.engineer_name):''}${b.accepted_at?' · Accepted '+uk(b.accepted_at.slice(0,10)):''}</div>
     <div class="bar" style="margin:10px 0 0;padding:8px;box-shadow:none">
-    ${mode==='open'?`<select data-eng="${esc(b.id)}"><option value="">Choose engineer…</option>${opt(b.engineer_id)}</select><button class="primary" data-act="issue" data-id="${esc(b.id)}">Issue</button>`:''}
+    ${mode==='open'?`<select data-eng="${esc(b.id)}"><option value="">Choose engineer…</option>${opt(b.engineer_id,b.engineer_name)}</select><button class="primary" data-act="issue" data-id="${esc(b.id)}">Issue</button>`:''}
     ${mode==='out'?`<button data-act="text" data-id="${esc(b.id)}">Text</button><button data-act="notify" data-id="${esc(b.id)}">Notify again</button><button data-act="done" data-id="${esc(b.id)}">Mark done</button>`:''}
     ${mode==='done'?`<button data-act="text" data-id="${esc(b.id)}">Text</button>`:''}
     <span class="sp"></span>${mode!=='done'?`<button data-act="cancel" data-id="${esc(b.id)}">Cancel booking</button>`:''}</div></div>`;
@@ -561,7 +623,7 @@ function viewBookings(){
     <div class="card"><h2>Waiting to be issued <span class="mute small">${open.length}</span></h2>${open.length?open.map(b=>card(b,'open')).join(''):'<span class="mute">No bookings waiting.</span>'}</div>
     <div class="card"><h2>Out with engineers <span class="mute small">${out.length}</span></h2>${out.length?out.map(b=>card(b,'out')).join(''):'<span class="mute">Nothing issued at the moment.</span>'}</div>
     <div class="card"><h2>Done in the last 7 days <span class="mute small">${done.length}</span></h2>${done.length?done.map(b=>card(b,'done')).join(''):'<span class="mute">None.</span>'}</div>
-    <div class="card"><details><summary>Engineer mobile numbers (for the Text button)</summary><div class="wrap" style="margin-top:10px"><table>${people.map(x=>`<tr><td>${esc(cap(x.name))}</td><td><input class="fld" data-phone="${esc(x.id)}" type="tel" value="${esc(D.phones[x.id]||'')}" placeholder="07…"></td></tr>`).join('')}</table></div></details></div>`;
+    <div class="card"><details><summary>Engineer mobile numbers (for the Text button)</summary><div class="wrap" style="margin-top:10px"><table>${people.map(x=>`<tr><td>${esc(x.name==='keyengineeringstaff'?'Key Engineering staff':cap(x.name))}</td><td><input class="fld" data-phone="${esc(x.id)}" type="tel" value="${esc(D.phones[x.id]||'')}" placeholder="07…"></td></tr>`).join('')}${D.staffPhones.map(x=>`<tr><td>${esc(x.name)}</td><td><input class="fld" data-sphone="${esc(x.name)}" type="tel" value="${esc(x.phone||'')}" placeholder="07…"></td></tr>`).join('')}</table></div></details></div>`;
   document.querySelectorAll('#v-bookings .fld').forEach(el=>{el.style.cssText+=';width:100%;margin-top:3px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font:inherit;box-sizing:border-box';});
   const say=(m,err)=>{$('msg').innerHTML=`<div class="${err?'err':'note'}">${esc(m)}</div>`;window.scrollTo({top:0,behavior:'smooth'});};
   let wantIssue=false;
@@ -588,11 +650,17 @@ function viewBookings(){
       const act=btn.dataset.act;
       if(act==='issue'){ const eng=document.querySelector(`select[data-eng="${b.id}"]`).value; const msg=await issueBooking(b,eng); await load(); render(); say(msg,false); return; }
       if(act==='text'){ await textEngineer(b); btn.disabled=false; render(); return; }
+      if(act==='notify'&&D.staffPhones.some(x=>x.name===b.engineer_name)){ say(b.engineer_name+' has no login of their own, so use the Text button.',false); btn.disabled=false; return; }
       if(act==='notify'){ const r=await notifyEngineer(b.id); say(r.sent?'Notification sent.':r.devices?'The notification could not be delivered — use the Text button.':'That engineer has not switched on phone notifications yet — use the Text button.',!r.sent); btn.disabled=false; return; }
       if(act==='done'){ await patchBooking(b.id,{status:'done',done_at:new Date().toISOString()}); }
       if(act==='cancel'){ if(!confirm('Cancel this booking?')){btn.disabled=false;return;} await patchBooking(b.id,{status:'cancelled'}); }
       await load(); render();
     }catch(err){ say(err.message,true); btn.disabled=false; }
+  });
+  $('v-bookings').querySelectorAll('input[data-sphone]').forEach(i=>i.onchange=async()=>{
+    const num=i.value.replace(/[^0-9+]/g,'');
+    try{ await api('/rest/v1/staff_phones?on_conflict=name',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({name:i.dataset.sphone,phone:num,updated_at:new Date().toISOString()})}); const r=D.staffPhones.find(x=>x.name===i.dataset.sphone); if(r) r.phone=num; i.value=num; say('Number saved.',false); }
+    catch(err){ say('Could not save number: '+err.message,true); }
   });
   $('v-bookings').querySelectorAll('input[data-phone]').forEach(i=>i.onchange=async()=>{
     const num=i.value.replace(/[^0-9+]/g,'');
@@ -602,11 +670,29 @@ function viewBookings(){
 }
 function viewWeek(){ if(invMode) viewInvoice(); else viewWeekEngineers(); }
 function hrsText(j){ return [j.nt?j.nt+' normal':'',j.ot?j.ot+' OT1':'',j.dt?j.dt+' OT2':''].filter(Boolean).join(', ')+(j.n>1?' × '+j.n+' engineers':''); }
+function ratesCard(){
+  if(!portalOK()) return ratesSet?'':'<div class="note">Charge-out rates are set by the office admins, so costs show as £0 here.</div>';
+  const f=(k,l,st)=>`<label class="small" style="display:block">${l}<input id="rt_${k}" type="number" min="0" step="${st}" inputmode="decimal" value="${RATES[k]}" style="width:100%"></label>`;
+  return `<details class="card"${ratesSet?'':' open'}><summary><b>Charge-out rates</b> <span class="mute small">${ratesSet?'£'+RATES.nt+' / £'+RATES.ot+' / £'+RATES.dt+' per hour · call-out £'+RATES.callout+' · £'+RATES.mile+' a mile':'not set yet'}</span></summary>
+    <p class="small mute" style="margin:8px 0">One set of rates for every engineer's job sheet. Kept in the private database. Only office admins can see or change them.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">${f('nt','Normal time £/hr',0.01)}${f('ot','Overtime 1 £/hr',0.01)}${f('dt','Overtime 2 £/hr',0.01)}${f('callout','Call-out £ (per job)',0.01)}${f('mile','Mileage £/mile',0.001)}${f('vat','VAT % (used by the Job Manager invoices)',0.1)}</div>
+    <p style="margin:10px 0 0"><button class="primary" id="rtSave">Save rates</button> <span id="rtMsg" class="small mute"></span></p></details>`;
+}
+function bindRates(){
+  const b=$('rtSave'); if(!b) return;
+  b.onclick=async()=>{
+    const data={}; for(const k of ['nt','ot','dt','callout','mile','vat']){ const v=parseFloat($('rt_'+k).value); if(!(v>=0)){ $('rtMsg').textContent='Check the '+k+' box — it needs a number.'; return; } data[k]=v; }
+    b.disabled=true; $('rtMsg').textContent='Saving…';
+    try{ await api('/rest/v1/app_rates?on_conflict=key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:'charge',data,updated_at:new Date().toISOString(),updated_by:(store.get('session')||{}).uid})}); await load(); render(); }
+    catch(e){ $('rtMsg').textContent='Could not save: '+e.message; b.disabled=false; }
+  };
+}
 function viewInvoice(){
   const rows=weekJobs(weekStart), by={};
   rows.forEach(j=>{ const c=j.customer||'Customer not set'; (by[c]=by[c]||[]).push(j); });
   const tot=rows.reduce((s,j)=>s+j.total,0);
   let html=`<div class="bar"><button id="iPrev">◀</button><b>Invoice worksheet · week starting ${uk(weekStart)}</b><button id="iNext">▶</button><button id="iNow">This week</button><span class="sp"></span><button id="iBack">Back to engineers</button><button id="iPrint">Print</button></div>
+  ${ratesCard()}
   <div class="note">One line per job. Labour = hours × rate × number of engineers; mileage once per job. Type materials into each job — they are saved for the whole office.</div>
   <div class="tiles"><div class="tile"><b>${Object.keys(by).length}</b><span>Customers to invoice</span></div><div class="tile"><b>${gbp(tot)}</b><span>Total to invoice</span></div></div>`;
   if(!rows.length) html+='<div class="card mute">No job sheets with time booked in this week.</div>';
@@ -623,6 +709,7 @@ function viewInvoice(){
   $('iNow').onclick=()=>{weekStart=monday(todayIso());viewWeek();};
   $('iBack').onclick=()=>{invMode=false;viewWeek();};
   $('iPrint').onclick=()=>window.print();
+  bindRates();
   bindMats();
 }
 function viewWeekEngineers(){
@@ -655,38 +742,18 @@ function viewWeekEngineers(){
   };
 }
 
-async function dueSave(d,newIso){
-  const r=d.r, data=JSON.parse(JSON.stringify(r.data||{}));
-  data.nextdue=newIso;
-  if((r.visit_type||'Service')==='LOLER'){ data.loler=data.loler||{}; data.loler.nextexam=newIso; }
-  await api('/rest/v1/reports?id=eq.'+encodeURIComponent(r.id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({next_due:newIso||null,data})});
-  r.next_due=newIso||null; r.data=data;
-}
-function dueWire(list){
-  const lab=d=>d.kind+' for '+(d.r.customer||'customer')+(d.r.crane_no?' (crane '+d.r.crane_no+')':'');
-  $('v-due').querySelectorAll('button[data-dchg]').forEach(b=>b.onclick=async()=>{
-    const d=list[+b.dataset.dchg]; const t=prompt('New due date for the '+lab(d)+'\n\nType it as dd/mm/yyyy',uk(d.iso)); if(t===null) return;
-    const m=/^\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\s*$/.exec(t); let y=m?+m[3]:0; if(m&&y<100) y+=2000;
-    const dt=m?new Date(y,+m[2]-1,+m[1]):null;
-    if(!dt||dt.getMonth()!==+m[2]-1){ alert('That date did not look right. Type it like 25/12/2026.'); return; }
-    const iso=y+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[1]).padStart(2,'0');
-    b.disabled=true; try{ await dueSave(d,iso); viewDue(); }catch(e){ alert('Could not change it: '+e.message+(e.status===403||e.status===401?' (only admins can edit other engineers\' reports)':'')); b.disabled=false; }
-  });
-  $('v-due').querySelectorAll('button[data-dcan]').forEach(b=>b.onclick=async()=>{
-    const d=list[+b.dataset.dcan]; if(!confirm('Cancel the '+lab(d)+', due '+uk(d.iso)+'?\n\nIt comes off the due list. Reports already written are kept.')) return;
-    b.disabled=true; try{ await dueSave(d,''); viewDue(); }catch(e){ alert('Could not cancel it: '+e.message); b.disabled=false; }
-  });
-}
 function viewDue(){
-  const all=dueList(), engs=[...new Set(all.map(d=>d.eng))].sort();
-  const list=all.filter(d=>d.days<=dueWin && (!dueEng||d.eng===dueEng) && (!dueKind||d.kind===dueKind));
+  const all=dueList(true), engs=[...new Set(all.map(d=>d.eng))].sort(), admin=portalOK(), trackKinds=[...new Set(D.tracker.map(t=>t.category))].sort();
+  const list=all.filter(d=>d.days<=dueWin && (!dueEng||d.eng===dueEng) && (!dueKind||d.kind===dueKind) && (!dueSrc||(dueSrc==='tracker')===!!d.tracker) && (!dueQ||[d.r.customer,d.kind,d.r.crane_no,d.r.site].join(' ').toLowerCase().includes(dueQ.toLowerCase())));
   $('v-due').innerHTML=`<div class="bar">
     <select id="dEng"><option value="">All engineers</option>${engs.map(e=>`<option ${e===dueEng?'selected':''}>${esc(e)}</option>`).join('')}</select>
-    <select id="dKind"><option value="">Service / Inspection / LOLER</option>${Object.keys(KINDS).map(k=>`<option ${k===dueKind?'selected':''}>${k}</option>`).join('')}</select>
+    <select id="dKind"><option value="">All types</option>${[...Object.keys(KINDS),...trackKinds].map(k=>`<option ${k===dueKind?'selected':''}>${esc(k)}</option>`).join('')}</select>
+    <select id="dSrc"><option value="">Reports + tracker</option><option value="reports" ${dueSrc==='reports'?'selected':''}>Reports only</option><option value="tracker" ${dueSrc==='tracker'?'selected':''}>Tracker only</option></select>
+    <input id="dQ" type="search" placeholder="Search customer…" value="${esc(dueQ)}" style="min-width:170px">
     <select id="dWin">${[7,30,60,90,365].map(n=>`<option value="${n}" ${n===dueWin?'selected':''}>Next ${n} days</option>`).join('')}</select>
     <span class="mute small">${list.length} shown</span><span class="sp"></span><button id="dCsv" ${list.length?'':'disabled'}>Download CSV</button></div>
-    <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th><th></th></tr>
-    ${list.map((d,di)=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.customer)}<div class="mute small">${esc(d.r.site||'')}</div></td><td>${esc(d.r.crane_no||'')}${d.r.id_no?` <span class="mute small">ID ${esc(d.r.id_no)}</span>`:''}</td><td>${esc(d.eng)}</td><td>${uk(d.r.report_date)}</td><td style="white-space:nowrap"><button data-dchg="${di}">Change date</button> <button data-dcan="${di}">Cancel</button></td></tr>`).join('')}</table>`:'<span class="mute">Nothing due in this window.</span>'}</div>`;
+    <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th>${admin?'<th></th>':''}</tr>
+    ${list.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.customer)}<div class="mute small">${esc(d.r.site||'')}</div></td><td>${esc(d.r.crane_no||'')}${d.r.id_no?` <span class="mute small">ID ${esc(d.r.id_no)}</span>`:''}</td><td>${d.tracker?'<span class="pill grey">TRACKER</span>':esc(d.eng)}${d.tracker&&d.tracker.note?`<div class="small mute">${esc(d.tracker.note)}</div>`:''}</td><td>${uk(d.r.report_date)}</td>${admin?`<td style="white-space:nowrap">${d.tracker?`<input type="date" data-td="${esc(d.tracker.id)}" value="${esc(d.tracker.due_date)}" title="Done? Put the new due date in"> <button data-tx="${esc(d.tracker.id)}" title="Remove from the tracker">Remove</button>`:''}</td>`:''}</tr>`).join('')}</table>`:'<span class="mute">Nothing due in this window.</span>'}</div>`;
   // chase drafts: one email per customer covering everything shown
   const byCust=new Map(); list.forEach(d=>{ const k=String(d.r.customer||'').trim(); if(!byCust.has(k)) byCust.set(k,[]); byCust.get(k).push(d); });
   const emailFor=name=>{ const c=D.custs.find(x=>String((x.data&&x.data.customer)||x.name_key).trim().toLowerCase()===name.toLowerCase()); return c&&c.data&&c.data.email?String(c.data.email).trim():''; };
@@ -700,144 +767,39 @@ function viewDue(){
     $('v-due').querySelectorAll('button[data-cc]').forEach(b=>b.onclick=async()=>{ const [n,it]=chase[+b.dataset.cc], d=draft(n,it); await copyText(d.subject+'\n\n'+d.body); b.textContent='Copied ✓'; setTimeout(()=>{b.textContent='Copy text';},1500); });
   }
   $('dCsv').onclick=()=>csvDownload('due_'+todayIso()+'.csv',['Due','Days','Type','Customer','Site','Crane','ID','Engineer','Last visit'],list.map(d=>[uk(d.iso),d.days,d.kind,d.r.customer,d.r.site,d.r.crane_no,d.r.id_no,d.eng,uk(d.r.report_date)]));
-  dueWire(list);
   $('dEng').onchange=e=>{dueEng=e.target.value;viewDue();};
   $('dKind').onchange=e=>{dueKind=e.target.value;viewDue();};
+  $('dSrc').onchange=e=>{dueSrc=e.target.value;viewDue();};
+  $('dQ').oninput=e=>{dueQ=e.target.value; const pos=e.target.selectionStart; viewDue(); const q=$('dQ'); q.focus(); q.setSelectionRange(pos,pos);};
+  const tsave=async(path,opts)=>{ try{ await api(path,opts); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } };
+  $('v-due').querySelectorAll('input[data-td]').forEach(i=>i.onchange=()=>{ if(i.value) tsave('/rest/v1/tracker_items?id=eq.'+encodeURIComponent(i.dataset.td),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({due_date:i.value,updated_at:new Date().toISOString()})}); });
+  $('v-due').querySelectorAll('button[data-tx]').forEach(b=>b.onclick=()=>{ if(confirm('Remove this line from the tracker?')) tsave('/rest/v1/tracker_items?id=eq.'+encodeURIComponent(b.dataset.tx),{method:'DELETE',headers:{Prefer:'return=minimal'}}); });
   $('dWin').onchange=e=>{dueWin=+e.target.value;viewDue();};
 }
 
 function viewRepairs(){
   const {open,done}=repairsList();
-  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td></tr>`;
-  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button></div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
-  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
+  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td>${x.comp?`<span class="small mute">${esc(x.comp.note||'')}</span>`:`<button data-mr="${esc(x.key)}" title="Record this as repaired">Mark repaired</button>`}</td></tr>`;
+  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button></div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
+  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th>Note</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
   $('rCsv').onclick=()=>csvDownload('repairs_'+todayIso()+'.csv',['Priority','Customer','Site','Crane','Group','Item','Note','Engineer','Reported'],open.map(x=>[x.it.status==='URGENT'?'Urgent':'Req attn',x.r.customer,x.r.site,x.r.crane_no,x.it.group,x.it.label,x.it.note,x.eng,uk(x.r.report_date)]));
   $('rPrint').onclick=()=>window.print();
-}
-
-let raQ='';
-function raHtml(c){
-  const RT={H:'High',M:'Medium',L:'Low',N:'N/A'}, tk=b=>b?'&#9746;':'&#9744;';
-  const rows=(c.rows||[]).filter(r=>r.rating!=='N'||r.prec||r.specific).map(r=>`<tr><td>${esc(r.h)}</td><td>${esc(r.specific||'')}</td><td class="c" style="background:${{H:'#e53935',M:'#fdd835',L:'#fb8c00',N:'#1e88e5'}[r.rating]||'#fff'};color:${r.rating==='M'?'#000':'#fff'}">${RT[r.rating]||''}</td><td>${esc(r.prec||'')}</td><td class="c">${r.rr?RT[r.rr]:''}</td></tr>`).join('');
-  const sg=(c.people||[]).filter(p=>p.on).map(p=>`<span style="display:inline-block;margin:4px 14px 4px 0">${esc(p.name)} ${p.sig?'<img src="'+p.sig+'" style="height:28px;vertical-align:middle;background:#fff;border:1px solid #ccc">':'<i>(not signed)</i>'}</span>`).join('');
-  return `<h2 style="margin:0 0 6px">${esc(c.ref)} <span style="font-weight:400;font-size:13px">Job ${esc(c.jobNo||'')} · ${esc(ukd(c.date))}</span></h2>
-   <div><b>Site:</b> ${esc(c.site||'')} &nbsp; <b>Location:</b> ${esc(c.location||'')}</div><div style="margin:4px 0"><b>Work:</b> ${esc(c.work||'')}</div>
-   <div>Who is at risk: ${tk((c.risk||{}).emp)} Company employees ${tk((c.risk||{}).other)} Other workers ${tk((c.risk||{}).pub)} General public &nbsp;|&nbsp; Environment damage: ${tk(c.env==='yes')} Yes ${tk(c.env==='no')} No</div>
-   <table style="width:100%;border-collapse:collapse;margin:8px 0" border="1" cellpadding="4"><tr style="background:#eee"><th>Hazard</th><th>Specific</th><th>Rating</th><th>Precautions</th><th>RR</th></tr>${rows||'<tr><td colspan="5">All hazards marked N/A</td></tr>'}</table>
-   <div><b>Signed:</b> ${sg||'<i>nobody</i>'}</div><div style="margin-top:6px"><b>Assessed by:</b> ${esc(c.assessedBy||'')} ${c.assessorSig?'<img src="'+c.assessorSig+'" style="height:28px;vertical-align:middle;background:#fff;border:1px solid #ccc">':''}</div>`;
-}
-function ukd(i){ return i?String(i).split('-').reverse().join('/'):''; }
-function viewRas(){
-  const q=raQ.toLowerCase(), all=D.ras||[];
-  const list=all.filter(r=>!q||[r.ref,r.job_no,r.site,r.assessed_by].join(' ').toLowerCase().includes(q));
-  $('v-ras').innerHTML=`<div class="bar"><input id="raSearch" placeholder="Search ref, job no, site or name" value="${esc(raQ)}" style="min-width:260px"><span class="sp"></span><span class="mute small">${list.length} of ${all.length}</span></div>
-  <div class="card"><div class="wrap">${list.length?`<table><tr><th>Ref</th><th>Job</th><th>Site</th><th>Assessed by</th><th>Updated</th><th></th></tr>${list.map(r=>`<tr><td><b>${esc(r.ref)}</b></td><td>${esc(r.job_no||'')}</td><td>${esc(r.site||'')}</td><td>${esc(r.assessed_by||'')}</td><td>${uk(String(r.updated_at).slice(0,10))}</td><td><button data-ra="${esc(r.id)}">View / print</button></td></tr>`).join('')}</table>`:'<span class="mute">Nothing found.</span>'}</div></div>`;
-  const s=$('raSearch'); s.oninput=()=>{ raQ=s.value; const pos=s.selectionStart; viewRas(); const n=$('raSearch'); n.focus(); n.setSelectionRange(pos,pos); };
-  $('v-ras').querySelectorAll('button[data-ra]').forEach(b=>b.onclick=async()=>{
+  $('v-repairs').querySelectorAll('button[data-mr]').forEach(b=>b.onclick=async()=>{
+    const note=window.prompt('Optional note about the repair (or leave blank):'); if(note===null) return;
     b.disabled=true;
-    try{
-      const r=await (await api('/rest/v1/risk_assessments?id=eq.'+encodeURIComponent(b.dataset.ra)+'&select=data')).json();
-      const c=r[0]&&r[0].data; if(!c) throw new Error('Not found');
-      const o=document.createElement('div'); o.id='raOv'; o.style.cssText='position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.6);overflow:auto;padding:16px';
-      o.innerHTML='<div style="background:#fff;color:#000;max-width:1000px;margin:0 auto;border-radius:12px;padding:16px;font-size:13px"><div style="display:flex;gap:8px;margin-bottom:10px"><button id="raPrint">Print</button><span style="flex:1"></span><button id="raClose">Close</button></div>'+raHtml(c)+'</div>';
-      document.body.appendChild(o);
-      $('raClose').onclick=()=>o.remove();
-      $('raPrint').onclick=()=>{ document.body.classList.add('raPrinting'); window.print(); setTimeout(()=>document.body.classList.remove('raPrinting'),500); };
-    }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; }
-    b.disabled=false;
-  });
-}
-const QUOTE_STATUS=[['new','New'],['in_progress','Being looked at'],['quoted','Quoted'],['won','Accepted'],['lost','Not going ahead'],['closed','Closed']];
-let quoteFilter='open';
-function viewQuotes(target){
-  const T=$(target||'v-quotes');
-  const admin=!!D.poAdmin, all=D.quotes||[];
-  const list=all.filter(q=>quoteFilter==='all'||['new','in_progress','quoted'].includes(q.status))
-    .slice().sort((a,b)=>((a.status==='new'?0:1)-(b.status==='new'?0:1))||((a.urgency==='urgent'?0:1)-(b.urgency==='urgent'?0:1))||(new Date(b.created_at)-new Date(a.created_at)));
-  const card=q=>`<div class="card" style="margin-bottom:10px"><h2><span>${esc(q.customer)} ${q.urgency==='urgent'?'<span class="pill red">URGENT</span>':''} <span class="pill ${q.status==='new'?'amber':(q.status==='won'?'green':'')}">${esc((QUOTE_STATUS.find(x=>x[0]===q.status)||[0,q.status])[1])}</span></span>
-    <span class="mute small">${esc(q.engineer_name)} · ${uk(String(q.created_at).slice(0,10))}</span></h2>
-    <div class="wrap" style="padding:10px 14px">
-    <div>${esc(q.work_type||'')}${q.equipment?' · '+esc(q.equipment):''}${q.site?' · '+esc(q.site):''}</div>
-    <div style="white-space:pre-wrap;margin:6px 0">${esc(q.description)}</div>
-    <div class="mute small">${q.contact_name?'Contact: '+esc(q.contact_name)+' ':''}${q.contact_phone?'<a href="tel:'+esc(q.contact_phone)+'">'+esc(q.contact_phone)+'</a> ':''}${q.contact_email?'<a href="mailto:'+esc(q.contact_email)+'">'+esc(q.contact_email)+'</a> ':''}${q.needed_by?' · Needed by '+uk(q.needed_by):''}</div>
-    ${q.quote_ref?'<div class="small"><b>Quote ref:</b> '+esc(q.quote_ref)+'</div>':''}${q.office_note?'<div class="small"><b>Note:</b> '+esc(q.office_note)+'</div>':''}
-    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button data-qp="${esc(q.id)}">📷 Photos</button>
-      ${admin?`<select data-qs="${esc(q.id)}">${QUOTE_STATUS.map(([k,l])=>`<option value="${k}"${q.status===k?' selected':''}>${l}</option>`).join('')}</select><button data-qn="${esc(q.id)}">Quote ref / note</button>`:''}
-    </div><div data-qph="${esc(q.id)}" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div></div></div>`;
-  T.innerHTML=`<div class="bar"><span class="mute small">Quote requests from engineers</span><span class="sp"></span>
-    <button data-qf="open"${quoteFilter==='open'?' class="primary"':''}>Open</button><button data-qf="all"${quoteFilter==='all'?' class="primary"':''}>All</button></div>
-    ${list.length?list.map(card).join(''):'<div class="card"><div class="wrap" style="padding:14px"><span class="mute">Nothing here.</span></div></div>'}
-    ${admin?'':'<div class="note">This login can view requests but not update them.</div>'}`;
-  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; };
-  const rpc=(fn,body)=>api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  T.querySelectorAll('button[data-qf]').forEach(b=>b.onclick=()=>{ quoteFilter=b.dataset.qf; viewQuotes(); });
-  T.querySelectorAll('select[data-qs]').forEach(sel=>sel.onchange=async()=>{ try{ await rpc('set_quote_status',{request_id:sel.dataset.qs,new_status:sel.value}); await refresh(); }catch(e){ fail(e); } });
-  T.querySelectorAll('button[data-qn]').forEach(b=>b.onclick=async()=>{
-    const q=all.find(x=>x.id===b.dataset.qn); if(!q) return;
-    const ref=prompt('Quote reference (leave as is to keep)',q.quote_ref||''); if(ref===null) return;
-    const note=prompt('Note for the engineer / office',q.office_note||''); if(note===null) return;
-    try{ await rpc('set_quote_status',{request_id:q.id,new_status:q.status,new_note:note,new_ref:ref}); await refresh(); }catch(e){ fail(e); }
-  });
-  T.querySelectorAll('button[data-qp]').forEach(b=>b.onclick=async()=>{
-    const box=T.querySelector('[data-qph="'+b.dataset.qp+'"]'); box.innerHTML='<span class="mute small">Loading…</span>';
-    try{
-      const r=await (await api('/rest/v1/quote_requests?id=eq.'+encodeURIComponent(b.dataset.qp)+'&select=photos')).json();
-      const ph=(r[0]&&r[0].photos)||[];
-      box.innerHTML=ph.length?ph.map(u=>`<img src="${u}" style="width:110px;height:110px;object-fit:cover;border-radius:8px;cursor:pointer" alt="">`).join(''):'<span class="mute small">No photos with this request.</span>';
-      box.querySelectorAll('img').forEach(im=>im.onclick=()=>{ const o=document.createElement('div'); o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99;display:flex;align-items:center;justify-content:center;padding:12px'; o.innerHTML='<img src="'+im.src+'" style="width:100%;height:100%;object-fit:contain">'; o.onclick=()=>o.remove(); document.body.appendChild(o); });
-    }catch(e){ box.innerHTML=''; fail(e); }
+    try{ await api('/rest/v1/completions?on_conflict=key',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({key:b.dataset.mr,done_date:todayIso(),note:note.trim(),done_by:(store.get('session')||{}).uid,updated_at:new Date().toISOString()})}); await load(); render(); }
+    catch(e){ $('msg').innerHTML='<div class="err">Could not record the repair: '+esc(e.message)+'</div>'; b.disabled=false; }
   });
 }
 
-const PO_STEPS=[['to_order','To order'],['ordered','Ordered'],['awaiting_delivery','Awaiting delivery'],['received','Received'],['awaiting_fitting','Awaiting fitting'],['fitted','Fitted / done']];
-const PO_STEP_LABEL=Object.fromEntries(PO_STEPS);
-let poFilter='open';
 function viewPo(){
-  viewPoCore();
-  const h=document.createElement('div'); h.id='v-po-quotes'; $('v-po').insertBefore(h,$('v-po').firstChild); viewQuotes('v-po-quotes');
-}
-function viewPoCore(){
-  const admin=!!D.poAdmin;
-  const rank=s=>PO_STEPS.findIndex(x=>x[0]===s);
-  const pending=D.pos.filter(p=>p.status==='pending').slice().reverse();
-  const approved=D.pos.filter(p=>p.status==='approved');
-  let list=approved;
-  if(poFilter==='open') list=approved.filter(p=>p.order_status!=='fitted');
-  if(poFilter==='done') list=approved.filter(p=>p.order_status==='fitted');
-  list=list.slice().sort((a,b)=>((a.urgency==='urgent'?0:1)-(b.urgency==='urgent'?0:1))||(rank(a.order_status)-rank(b.order_status))||(new Date(a.decided_at||0)-new Date(b.decided_at||0)));
-  const extra=p=>[p.urgency==='urgent'?'<span class="pill red">URGENT</span>':'',p.quantity?'Qty '+esc(p.quantity):'',p.needed_by?'Needed by '+uk(p.needed_by):''].filter(Boolean).join(' · ');
-  const pendingHtml=pending.length?`<table><tr><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
-    ${pending.map(p=>`<tr><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${admin?`<button class="primary" data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing waiting for approval.</span>';
-  const ordersHtml=list.length?`<table><tr><th>PO</th><th>Engineer</th><th>Job / site</th><th>Supplier</th><th>Part needed</th><th class="r">Est.</th><th>Order progress</th><th>Note</th></tr>
-    ${list.map(p=>`<tr><td><b>${esc(p.po_number||'')}</b><div class="mute small">${uk((p.decided_at||'').slice(0,10))}</div></td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.supplier||'')}</td><td>${esc(p.description)}${extra(p)?'<div class="mute small">'+extra(p)+'</div>':''}</td><td class="r">${esc(p.est_value||'')}</td>
-      <td>${admin?`<select data-os="${esc(p.id)}">${PO_STEPS.map(([k,l])=>`<option value="${k}"${p.order_status===k?' selected':''}>${l}</option>`).join('')}</select>`:`<span class="pill ${p.order_status==='fitted'?'green':'amber'}">${esc(PO_STEP_LABEL[p.order_status]||p.order_status||'')}</span>`}</td>
-      <td>${esc(p.order_note||'')}${admin?` <button data-on="${esc(p.id)}">${p.order_note?'Edit':'Add note'}</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">Nothing here.</span>';
-  $('v-po').innerHTML=`<div class="card"><h2><span>Waiting for approval <span class="mute small">${pending.length}</span></span></h2><div class="wrap">${pendingHtml}</div></div>
-  <div class="card"><h2><span>Orders to process <span class="mute small">${list.length}</span></span>
-    <span><button data-pf="open"${poFilter==='open'?' class="primary"':''}>Open</button> <button data-pf="done"${poFilter==='done'?' class="primary"':''}>Done</button> <button data-pf="all"${poFilter==='all'?' class="primary"':''}>All</button></span></h2>
-    <div class="wrap">${ordersHtml}</div></div>
-  ${admin?'':'<div class="note">This login can view requests but not approve or update them.</div>'}`;
-  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; };
-  const rpc=(fn,body)=>api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  $('v-po').querySelectorAll('button[data-pf]').forEach(b=>b.onclick=()=>{ poFilter=b.dataset.pf; viewPo(); });
+  const admin = D.pos.some(p=>p.requested_by!==(store.get('session')||{}).uid);
+  $('v-po').innerHTML=`<div class="card"><h2>Purchase orders <span class="mute small">${D.pos.length}</span></h2><div class="wrap">${D.pos.length?`<table><tr><th>Status</th><th>PO</th><th>Engineer</th><th>Site / ref</th><th>Description</th><th class="r">Est.</th><th>Requested</th><th></th></tr>
+  ${D.pos.map(p=>`<tr><td><span class="pill ${p.status==='approved'?'green':p.status==='rejected'?'red':'amber'}">${esc(p.status)}</span></td><td>${esc(p.po_number||'')}</td><td>${esc(p.engineer_name)}</td><td>${esc(p.site_ref)}</td><td>${esc(p.description)}</td><td class="r">${esc(p.est_value||'')}</td><td>${uk((p.created_at||'').slice(0,10))}</td><td>${p.status==='pending'&&admin?`<button data-a="approve_po" data-id="${esc(p.id)}">Approve</button> <button data-a="reject_po" data-id="${esc(p.id)}">Reject</button>`:''}</td></tr>`).join('')}</table>`:'<span class="mute">No purchase order requests.</span>'}</div></div>`;
   $('v-po').querySelectorAll('button[data-a]').forEach(b=>b.onclick=async()=>{
-    if(b.dataset.a==='reject_po' && !confirm('Reject this request?')) return;
     b.disabled=true;
-    try{ await rpc(b.dataset.a,{request_id:b.dataset.id}); await refresh(); }
-    catch(e){ fail(e); b.disabled=false; }
-  });
-  $('v-po').querySelectorAll('select[data-os]').forEach(sel=>sel.onchange=async()=>{
-    sel.disabled=true;
-    try{ await rpc('set_order_status',{request_id:sel.dataset.os,new_status:sel.value}); await refresh(); }
-    catch(e){ fail(e); sel.disabled=false; }
-  });
-  $('v-po').querySelectorAll('button[data-on]').forEach(b=>b.onclick=async()=>{
-    const r=D.pos.find(x=>x.id===b.dataset.on);
-    const v=prompt('Note (e.g. supplier order ref, due date)',(r&&r.order_note)||'');
-    if(v===null) return;
-    try{ await rpc('set_order_note',{request_id:b.dataset.on,new_note:v}); await refresh(); }
-    catch(e){ fail(e); }
+    try{ await api('/rest/v1/rpc/'+b.dataset.a,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({request_id:b.dataset.id})}); await refresh(); }
+    catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
   });
 }
 
@@ -943,6 +905,21 @@ function holSummary(){
     clashes:holClashes(t,addDays(t,90)),
     pending:D.hol.reqs.filter(r=>r.status==='pending').length
   };
+}
+// Who is off between today and N days ahead (approved and waiting-for-approval), for the Overview and Today tabs
+function offList(days){
+  const t=todayIso(), end=addDays(t,days), bank=holBank();
+  return holLive().filter(r=>r.end_date>=t&&r.start_date<=end&&holWorkDays(r,bank).some(s=>s>=t&&s<=end))
+    .sort((a,b)=>a.start_date.localeCompare(b.start_date)||String(a.staff).localeCompare(String(b.staff)))
+    .map(r=>({r, now:r.status==='approved'&&r.start_date<=t&&r.end_date>=t&&isWork(t,bank), back:nextWork(r.end_date,bank)}));
+}
+function offCard(days){
+  const list=offList(days);
+  const rows=list.map(x=>{ const r=x.r;
+    const dates=(r.start_date===r.end_date?fmtDay(r.start_date):fmtDay(r.start_date)+' to '+fmtDay(r.end_date))+(r.half_day?' (half day)':'')+(r.lieu?' · day in lieu':'');
+    const st=r.status==='pending'?'<span class="pill amber">WAITING FOR APPROVAL</span>':x.now?'<span class="pill red">OFF TODAY</span>':'<span class="pill green">APPROVED</span>';
+    return `<tr><td><b>${esc(r.staff)}</b></td><td>${esc(dates)}</td><td>${esc(fmtDay(x.back))}</td><td>${st}</td></tr>`; }).join('');
+  return `<div class="card" id="offCard"><h2>Who is off <span class="mute small">${list.length?list.length+' booked · ':''}next ${days} days</span></h2>${list.length?`<div class="wrap"><table><tr><th>Engineer</th><th>Dates</th><th>Back at work</th><th></th></tr>${rows}</table></div>`:`<span class="mute">Nobody is booked off in the next ${days} days.</span>`}</div>`;
 }
 function holUsed(n,y){
   const bank=holBank(), t=todayIso(), o={taken:0,booked:0,pending:0};
@@ -1076,6 +1053,7 @@ function viewHols(){
 // ---------- customer portals ----------
 // Links and numbers for customers' supplier portals, so the office can get to them quickly. Office (admin logins) only.
 // There is deliberately no password field: keep logins in a proper password manager.
+const PORTAL_DEFAULT_URL = 'https://wr42pw6p4n-debug.github.io/Report-sheet/portal.html';
 const portalOK = () => !!(D.profile && D.profile.role==='admin');
 let portalQ = '', portalEdit = null;
 const portalUrl = u => { u=String(u||'').trim(); if(!u) return ''; if(!/^[a-z][a-z0-9+.-]*:/i.test(u)) u='https://'+u; return /^https?:\/\//i.test(u)?u:''; };
@@ -1090,7 +1068,7 @@ function viewPortals(){
   $('v-portals').innerHTML=`<div class="card"><h2>Customer portal logins <span class="mute small" id="pinCount">${withPin} of ${D.custs.length} customers have access</span></h2>
     <div class="bar" style="box-shadow:none;padding:0;border:0">
       <input id="pinSearch" type="search" placeholder="Search customer or PIN…" value="${esc(pinQ)}" style="flex:1;min-width:200px" autocomplete="off">
-      <label class="small mute" style="flex:1;min-width:220px">Portal address (for the copied login message)<input id="pinPortal" placeholder="https://…" value="${esc(store.get('portal_url')||'')}" style="width:100%"></label>
+      <label class="small mute" style="flex:1;min-width:220px">Portal address (for the copied login message)<input id="pinPortal" placeholder="https://…" value="${esc(store.get('portal_url')||PORTAL_DEFAULT_URL)}" style="width:100%"></label>
     </div>
     <div class="note" style="margin-top:12px">Customers sign in to the portal with their <b>company name</b> and their own <b>6-digit PIN</b>. A PIN belongs to one customer only. Making a new PIN stops the old one working straight away. Customers appear here once they have been added in the Crane Service Report app.</div>
     <div id="pinList"></div></div>
@@ -1107,7 +1085,7 @@ function viewPortals(){
     $('pinList').querySelectorAll('button[data-pnew]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pnew); if(!confirm('Make a new PIN for '+nm(c)+'?\n\nTheir old PIN stops working straight away, so you will need to give them the new one.')) return; b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:true},pin=>'New PIN for '+nm(c)+': '+pin+'. The old one no longer works.'); });
     $('pinList').querySelectorAll('button[data-prev]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.prev); if(!confirm('Remove portal access for '+nm(c)+'?\n\nTheir PIN stops working straight away. You can give access again later with a new PIN.')) return; b.disabled=true; rpc('revoke_customer_pin',{p_name_key:c.name_key},()=>'Portal access removed for '+nm(c)+'.'); });
     $('pinList').querySelectorAll('button[data-pcopy]').forEach(b=>b.onclick=async()=>{ const ok=await copyText(pn(cust(b.dataset.pcopy))); flash(b,ok?'Copied ✓':'Not copied'); });
-    $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||'').trim(); const ok=await copyText('Key Engineering customer portal\n'+(url?'Address: '+url+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
+    $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||PORTAL_DEFAULT_URL).trim(), link=url?url+(url.includes('?')?'&':'?')+'c='+encodeURIComponent(nm(c)):''; const ok=await copyText('Key Engineering customer portal\n'+(link?'Address: '+link+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
   };
   list();
   $('pinSearch').oninput=ev=>{ pinQ=ev.target.value; list(); };
@@ -1206,7 +1184,7 @@ function runGlobalSearch(){
     if(has(hay)) hits.push({type:kind+' report',main:(r.report_no||'Report')+' · '+(r.customer||'Customer not set'),sub:[r.visit_type,r.crane_no?'Crane '+r.crane_no:'',r.id_no?'ID '+r.id_no:'',r.site,r.engineer,uk(r.report_date)].filter(Boolean).join(' · '),tab:'due',key:r.id,report:r});
   });
   D.pos.forEach(p=>{
-    const hay=[p.po_number,p.engineer_name,p.site_ref,p.supplier,p.description,p.status,p.order_status,p.order_note,p.requested_by].join(' ');
+    const hay=[p.po_number,p.engineer_name,p.site_ref,p.description,p.status,p.requested_by].join(' ');
     if(has(hay)) hits.push({type:'Purchase order',main:(p.po_number||'PO request')+' · '+(p.site_ref||p.engineer_name||'Request'),sub:[p.status,p.description].filter(Boolean).join(' · '),tab:'po',key:p.id});
   });
   D.bookings.forEach(b=>{
@@ -1340,24 +1318,353 @@ function viewFleet(){
 function viewVisits(){
   const open=D.visits.filter(x=>x.status==='new'), done=D.visits.filter(x=>x.status!=='new').slice(0,30);
   const row=x=>`<tr><td>${uk(String(x.created_at).slice(0,10))}</td><td><b>${esc(x.customer)}</b><div class="small mute">${esc(x.contact_name||'')} ${x.phone?'· '+esc(x.phone):''} ${x.email?'· <a href="mailto:'+esc(x.email)+'">'+esc(x.email)+'</a>':''}</div></td><td>${esc(x.crane_no||'')}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.message||'')}${x.preferred_date?`<div class="small mute">Preferred: ${esc(x.preferred_date)}</div>`:''}</td><td>${x.status==='new'?`<button data-vh="${esc(x.id)}" class="primary">Mark handled</button>`:'<span class="pill grey">HANDLED</span>'}</td></tr>`;
-  $('v-visits').innerHTML=`<div class="card wrap"><h2>Waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
+  $('v-visits').innerHTML=`<div class="card wrap"><h2>Customer portal visit requests waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
   $('v-visits').querySelectorAll('button[data-vh]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await api('/rest/v1/visit_requests?id=eq.'+encodeURIComponent(b.dataset.vh),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:'handled',handled_by:(store.get('session')||{}).uid})}); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; } });
 }
 
+// ---------- customer page: everything about one customer on one screen ----------
+let custQ='', custSel='', custType='All';
+function custIndex(){
+  const m=new Map();
+  const get=name=>{ const k=nk(name); if(!k) return null; if(!m.has(k)) m.set(k,{key:k,name:String(name).trim(),rec:null,reports:[],tracker:[],visits:[],jobs:[]}); return m.get(k); };
+  D.custs.forEach(c=>{ const nm=(c.data&&c.data.customer)||c.name_key; const e=get(nm); if(e){ e.rec=c; e.name=String(nm).trim(); } });
+  D.reports.forEach(r=>{ const e=get(r.customer); if(e) e.reports.push(r); });
+  D.tracker.forEach(t=>{ const e=get(t.customer); if(e) e.tracker.push(t); });
+  D.visits.forEach(v=>{ const e=get(v.customer); if(e) e.visits.push(v); });
+  D.jobs.forEach(j=>{ const d=j.data||{}, e=get(d.customerName||d.customer); if(e) e.jobs.push(j); });
+  return m;
+}
+function viewCustomers(){
+  const idx=custIndex(), due=dueList(), rep=repairsList().open, dueBy={}, repBy={};
+  due.forEach(d=>{ const k=nk(d.r.customer); (dueBy[k]=dueBy[k]||[]).push(d); });
+  rep.forEach(x=>{ const k=nk(x.r.customer); (repBy[k]=repBy[k]||[]).push(x); });
+  const all=[...idx.values()].sort((a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base'}));
+  const q=nk(custQ), shown=q?all.filter(e=>e.key.includes(q)||e.reports.some(r=>nk(r.crane_no).includes(q)||nk(r.id_no).includes(q))):all;
+  if(custSel&&!idx.has(custSel)) custSel='';
+  const flags=e=>{ const o=(dueBy[e.key]||[]).filter(x=>x.days<0).length, u=(repBy[e.key]||[]).filter(x=>x.it.status==='URGENT').length; return (o?`<span class="pill red">${o} overdue</span>`:'')+(u?`<span class="pill red">${u} urgent</span>`:''); };
+  const list=shown.length?shown.map(e=>`<button class="custrow ${e.key===custSel?'on':''}" data-ck="${esc(e.key)}"><b>${esc(e.name)}</b><span class="small mute">${e.reports.length} report${e.reports.length===1?'':'s'}</span>${flags(e)}</button>`).join(''):'<span class="mute">No customers match.</span>';
+  const detail=custSel?custDetail(idx.get(custSel),dueBy[custSel]||[],repBy[custSel]||[]):`<div class="card"><span class="mute">Choose a customer to see their cranes, due dates, repairs, reports and requests in one place. ${all.length} customers.</span></div>`;
+  $('v-customers').innerHTML=`<div class="custwrap"><div class="custlist card"><input type="search" id="custQ" placeholder="Search customer, crane or ID…" value="${esc(custQ)}"><div class="custrows">${list}</div></div><div class="custdetail">${detail}</div></div>`;
+  $('v-customers').querySelectorAll('button[data-ct]').forEach(b=>b.onclick=()=>{ custType=b.dataset.ct; viewCustomers(); });
+  $('v-customers').querySelectorAll('button[data-cpdf]').forEach(b=>b.onclick=async()=>{
+    const r=D.reports.find(x=>x.id===b.dataset.cpdf); if(!r) return; const old=b.textContent; b.disabled=true; b.textContent='Opening…';
+    const w=window.open('','_blank');   // opened inside the click so pop-up blockers allow it
+    try{ const url=await reportPdfUrl(r); if(w) w.location=url; else location.href=url; }
+    catch(e){ if(w) w.close(); $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); }
+    b.disabled=false; b.textContent=old;
+  });
+  $('v-customers').querySelectorAll('button[data-cjob]').forEach(b=>b.onclick=()=>{ weekStart=b.dataset.cjob?monday(b.dataset.cjob):weekStart; tab='week'; store.set('tab',tab); render(); window.scrollTo({top:0}); });
+  $('custQ').oninput=ev=>{ custQ=ev.target.value; viewCustomers(); const i=$('custQ'); i.focus(); i.setSelectionRange(i.value.length,i.value.length); };
+  $('v-customers').querySelectorAll('button[data-ck]').forEach(b=>b.onclick=()=>{ custSel=b.dataset.ck; viewCustomers(); const d=$('v-customers').querySelector('.custdetail'); if(d&&window.innerWidth<=820) d.scrollIntoView({behavior:'smooth',block:'start'}); });
+}
+function custDetail(e,dues,reps){
+  const admin=portalOK(), data=(e.rec&&e.rec.data)||{}, pin=admin?String(data.customerpin||'').trim():'', email=String(data.email||'').trim();
+  const eqKey=eqKeyR;
+  const cranes=new Map();
+  e.reports.forEach(r=>{    // reports arrive newest first
+    if(!cranes.has(eqKey(r))) cranes.set(eqKey(r),{key:eqKey(r),crane:String(r.crane_no||'').trim(),id:String(r.id_no||'').trim(),site:'',last:{}});
+    const c=cranes.get(eqKey(r)); if(!c.site&&r.site) c.site=String(r.site).trim();
+    const t=r.visit_type||'Service'; if(!c.last[t]) c.last[t]=r.report_date;
+  });
+  const nextFor=c=>{ const x=dues.filter(d=>d.r.crane_no!==undefined&&eqKey(d.r)===c.key&&!d.tracker).sort((a,b)=>a.days-b.days)[0]; return x?`${uk(x.iso)} ${pill(x.days)}`:'<span class="mute">—</span>'; };
+  const cr=[...cranes.values()].sort((a,b)=>a.crane.localeCompare(b.crane,'en',{numeric:true}));
+  const over=dues.filter(d=>d.days<0).length, soon=dues.filter(d=>d.days>=0&&d.days<=30).length, urg=reps.filter(x=>x.it.status==='URGENT').length;
+  const tile=(n,l,c)=>`<div class="tile ${c||''}"><b>${n}</b><span>${l}</span></div>`;
+  const cranesHtml=cr.length?`<div class="wrap"><table><tr><th>Crane</th><th>ID</th><th>Site</th><th>Last service</th><th>Last inspection</th><th>Last LOLER</th><th>Next due</th></tr>${cr.map(c=>`<tr><td><b>${esc(c.crane||'—')}</b></td><td>${esc(c.id)}</td><td>${esc(c.site)}</td><td>${uk(c.last.Service)||'<span class="mute">—</span>'}</td><td>${uk(c.last.Inspection)||'<span class="mute">—</span>'}</td><td>${uk(c.last.LOLER)||'<span class="mute">—</span>'}</td><td>${nextFor(c)}</td></tr>`).join('')}</table></div>`:'<span class="mute">No reports filed for this customer yet.</span>';
+  const dueHtml=dues.length?`<div class="wrap"><table><tr><th>Due</th><th></th><th>Type</th><th>Crane</th><th>From</th></tr>${dues.map(d=>`<tr><td>${uk(d.iso)}</td><td>${pill(d.days)}</td><td>${esc(d.kind)}</td><td>${esc(d.r.crane_no||'')}</td><td class="mute small">${d.tracker?'Tracker':'Last report'}</td></tr>`).join('')}</table></div>`:'<span class="mute">Nothing due.</span>';
+  const repHtml=reps.length?`<div class="wrap"><table><tr><th>Crane</th><th>Item</th><th></th><th>Reported</th><th>Engineer</th></tr>${reps.map(x=>`<tr><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group||'')} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td><span class="pill ${x.it.status==='URGENT'?'red':'amber'}">${x.it.status==='URGENT'?'URGENT':'ATTENTION'}</span></td><td>${uk(x.r.report_date)}</td><td>${esc(x.eng)}</td></tr>`).join('')}</table></div>`:'<span class="mute">No outstanding repairs.</span>';
+  const kindOf=r=>/loler/i.test(r.visit_type||'')?'LOLER':/insp/i.test(r.visit_type||'')?'Inspection':'Service';
+  const cnt=t=>t==='All'?e.reports.length:e.reports.filter(r=>kindOf(r)===t).length;
+  const shownRep=e.reports.filter(r=>custType==='All'||kindOf(r)===custType);
+  const typeBtns=['All','Service','Inspection','LOLER'].map(t=>`<button data-ct="${t}" class="${t===custType?'primary':''}">${t} (${cnt(t)})</button>`).join(' ');
+  const recHtml=`<p style="margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap">${typeBtns}</p>`+(shownRep.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Date</th><th>Type</th><th>Crane</th><th>Report</th><th>Engineer</th><th>Defects</th><th></th></tr>${shownRep.map(r=>{ const it=((r.data&&r.data.items)||[]).filter(Boolean), u=it.filter(i=>i.status==='URGENT').length, a=it.filter(i=>i.status==='ATTN').length; return `<tr><td>${uk(r.report_date)}</td><td>${esc(kindOf(r))}</td><td>${esc(r.crane_no||'')}</td><td>${esc(r.report_no||'')}</td><td>${esc(r.engineer||'')}</td><td>${u?`<b style="color:var(--red)">${u} urgent</b>`:''}${u&&a?', ':''}${a?a+' attn':''}${!u&&!a?'none':''}</td><td class="r"><button data-cpdf="${esc(r.id)}">Open PDF</button></td></tr>`; }).join('')}</table></div>`:'<span class="mute">No reports of this type.</span>');
+  const canonJ=nameMap(), jdate=j=>((((j.data||{}).time||[])[0]||{}).date)||(j.data||{}).date||'';
+  const jobsSorted=e.jobs.slice().sort((p,q)=>jdate(q).localeCompare(jdate(p)));
+  const jobsHtml=jobsSorted.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Job</th><th>Date</th><th>Type</th><th>Site</th><th>Status</th><th>Engineers</th><th></th></tr>${jobsSorted.map(j=>{ const x=j.data||{}; return `<tr><td><b>${esc(x.job||j.id)}</b></td><td>${uk(jdate(j))}</td><td>${esc(x.type||'')}</td><td>${esc(x.site||'')}</td><td>${esc(x.status||'')}</td><td class="small">${esc((x.engineers||[]).map(canonJ).join(' + '))}</td><td class="r"><button data-cjob="${esc(jdate(j))}">Open</button></td></tr>`; }).join('')}</table></div>`:`<span class="mute">${D.jobsBlocked?'This login cannot see job sheets.':'No job sheets for this customer.'}</span>`;
+  const vis=e.visits.slice(0,10);
+  const visHtml=vis.length?`<div class="wrap"><table><tr><th>Sent</th><th>Request</th><th>Contact</th><th></th></tr>${vis.map(v=>`<tr><td>${uk(String(v.created_at).slice(0,10))}</td><td style="white-space:pre-wrap">${esc(v.message||'')}</td><td class="small">${esc(v.contact_name||'')} ${v.phone?'· '+esc(v.phone):''}</td><td>${v.status==='new'?'<span class="pill amber">NEW</span>':'<span class="pill grey">DONE</span>'}</td></tr>`).join('')}</table></div>`:'';
+  return `<div class="card custhead"><h2>${esc(e.name)}</h2>
+    <div class="small">${email?`<a href="mailto:${esc(email)}">${esc(email)}</a>`:'<span class="mute">No email on file</span>'}${admin?` · Portal PIN: ${pin?`<b>${esc(pin)}</b>`:'<span class="mute">none yet (Customer portals tab)</span>'}`:''}</div></div>
+  <div class="tiles">${tile(cr.length,'Cranes / equipment')}${tile(e.reports.length,'Reports on file')}${tile(e.jobs.length,'Job sheets')}${tile(over,'Overdue',over?'red':'green')}${tile(soon,'Due in 30 days',soon?'amber':'')}${tile(urg,'Urgent repairs',urg?'red':'green')}</div>
+  <div class="card"><h2>Cranes &amp; equipment</h2>${cranesHtml}</div>
+  <div class="card"><h2>Due dates <span class="mute small">${dues.length}</span></h2>${dueHtml}</div>
+  <div class="card"><h2>Outstanding repairs <span class="mute small">${reps.length}</span></h2>${repHtml}</div>
+  <div class="card"><h2>Service, inspection &amp; LOLER reports</h2>${recHtml}</div>
+  <div class="card"><h2>Job sheets <span class="mute small">${jobsSorted.length}</span></h2>${jobsHtml}</div>
+  ${visHtml?`<div class="card"><h2>Visit requests from the portal</h2>${visHtml}</div>`:''}`;
+}
+
+// ---------- backups (admin only): automatic weekly copy of all office data, plus a button to take one now ----------
+async function loadBackups(){
+  try{
+    const r=await (await api('/storage/v1/object/list/backups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefix:'',limit:100,offset:0,sortBy:{column:'name',order:'desc'}})})).json();
+    D.backups=(Array.isArray(r)?r:[]).filter(o=>o&&o.name&&/^backup-.*\.json$/.test(o.name)); D.backupErr='';
+  }catch(e){ D.backups=null; D.backupErr=e.message; }
+}
+const bkTime = n => { const m=/backup-(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})/.exec(n); return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])):null; };
+function backupStale(){ if(!Array.isArray(D.backups)) return false; const t=D.backups.length?bkTime(D.backups[0].name):null; return !t||(Date.now()-t.getTime())>9*864e5; }
+function viewBackups(){
+  const draw=(note)=>{
+    const list=D.backups, stale=backupStale();
+    const rows=Array.isArray(list)?list.map(f=>{ const t=bkTime(f.name), mb=f.metadata&&f.metadata.size?(f.metadata.size/1048576).toFixed(1)+' MB':''; return `<tr><td>${t?esc(t.toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short',timeZone:'Europe/London'})):esc(f.name)}</td><td>${mb}</td><td class="r"><button data-bk="${esc(f.name)}">Download</button></td></tr>`; }).join(''):'';
+    $('v-backups').innerHTML=`<div class="card"><h2>Backups</h2>
+      <p style="margin:0 0 10px">Every Sunday at 3am a full copy of your office data is saved automatically (jobs, reports, customers, PINs, holidays, bookings, purchase orders, chat and more). The latest 12 are kept. Only office admins can see or download them.</p>
+      ${Array.isArray(list)&&stale?'<div class="err">The newest backup is more than 9 days old (or there is none). Press “Back up now” and tell Claude if this keeps happening.</div>':''}
+      ${D.backupErr?`<div class="err">${esc(D.backupErr)}</div>`:''}
+      ${note?`<div class="note">${esc(note)}</div>`:''}
+      <p><button class="primary" id="bkNow">Back up now</button></p>
+      <p class="small mute" style="margin:0">Tip: every month or so, download one and keep it somewhere outside Supabase (a USB stick or OneDrive), so you always have a copy of your own. PDF reports are stored separately and are not inside these files.</p></div>
+    <div class="card wrap"><h2>Saved backups <span class="mute small">${Array.isArray(list)?list.length:''}</span></h2>${Array.isArray(list)?(list.length?`<table><tr><th>Taken</th><th>Size</th><th></th></tr>${rows}</table>`:'<span class="mute">None yet.</span>'):'<span class="mute">Loading…</span>'}</div>`;
+    $('bkNow').onclick=async()=>{ $('bkNow').disabled=true; $('bkNow').textContent='Backing up…'; try{ const j=await (await api('/functions/v1/backup',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json(); await loadBackups(); draw(j.ok?'Backup saved ('+(j.bytes/1048576).toFixed(1)+' MB).':(j.error||'Backup did not finish.')); }catch(err){ draw('Backup failed: '+err.message); } };
+    $('v-backups').querySelectorAll('button[data-bk]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ const j=await (await api('/storage/v1/object/sign/backups/'+encodeURIComponent(b.dataset.bk),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:300})})).json(); const a=document.createElement('a'); a.href=SB.url+'/storage/v1'+j.signedURL; a.download=b.dataset.bk; document.body.appendChild(a); a.click(); a.remove(); }catch(err){ draw('Could not download: '+err.message); } b.disabled=false; });
+  };
+  draw();
+  if(!D.backupsLoading){ D.backupsLoading=true; loadBackups().then(()=>{ D.backupsLoading=false; if(tab==='backups') draw(); }); }
+}
+
+// ---------- crane check register: weekly + monthly checks, ticked off here or automatically from inspection reports ----------
+const regKey = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let regCust='', regWeekFrom='', regYear=new Date().getFullYear();
+function isoWeekOf(dateIso){
+  const mon=monday(dateIso), thu=parse(addDays(mon,3)), y=thu.getFullYear();
+  const wk1=monday(y+'-01-04'); const n=Math.round((parse(mon)-parse(wk1))/6048e5)+1;
+  return {key:y+'-W'+String(n).padStart(2,'0'), mon, n, y};
+}
+// which crane groups are checked in month i (0-11): rotation entries can be one group name or a list of them
+const monthGroups = (cfg,i) => { const r=(cfg.rotation||[])[i]; return Array.isArray(r)?r.filter(Boolean):(r?[r]:[]); };
+function groupCranes(cfg,groups){ const seen=new Set(), out=[]; groups.forEach(g=>((cfg.groups||{})[g]||[]).forEach(c=>{ if(!seen.has(regKey(c))){ seen.add(regKey(c)); out.push(c); } })); return out; }
+function weekRange(mon){ return [mon, addDays(mon,6)]; }
+function monthRange(ym){ const [y,m]=ym.split('-').map(Number); return [ym+'-01', iso(new Date(y,m,0))]; }
+function regCfgs(){ return D.regCfg.map(r=>Object.assign({customer:r.customer},r.data||{})); }
+function regIndexes(){
+  if(D._regFor===D.reports&&D._regChecksFor===D.regChecks&&D._regIdx) return D._regIdx;
+  const manual=new Map(); D.regChecks.forEach(r=>manual.set(nk(r.customer)+'|'+regKey(r.crane)+'|'+r.period,r));
+  const auto=new Map();   // customer|crane -> [report dates of inspections], newest first (reports arrive newest first)
+  D.reports.forEach(r=>{ if(!/insp/i.test(r.visit_type||'')) return; const k=nk(r.customer)+'|'+regKey(r.crane_no); if(!auto.has(k)) auto.set(k,[]); auto.get(k).push(r); });
+  D._regFor=D.reports; D._regChecksFor=D.regChecks; D._regIdx={manual,auto}; return D._regIdx;
+}
+// state of one crane in one period: done / late / open / future / na
+function regCell(cfg,crane,kind,period){
+  const {manual,auto}=regIndexes(), ck=nk(cfg.customer)+'|'+regKey(crane);
+  const row=manual.get(ck+'|'+period)||null;
+  const [a,b]=kind==='weekly'?weekRange(parseWeekKey(period)):monthRange(period);
+  let scheduled=true;
+  if(kind==='monthly') scheduled=groupCranes(cfg,monthGroups(cfg,+period.slice(5,7)-1)).some(c=>regKey(c)===regKey(crane));
+  const ar=(auto.get(ck)||[]).find(r=>r.report_date>=a&&r.report_date<=b)||null;
+  const doneOn=(row&&row.done_on)||(ar&&ar.report_date)||'';
+  const out={row,auto:ar,doneOn,a,b,sent:!!(row&&row.report_sent),shut:!!(row&&row.shutdown)};
+  if(doneOn) return Object.assign(out,{st:'done'});
+  if(row&&row.na) return Object.assign(out,{st:'na'});
+  if(!scheduled) return Object.assign(out,{st:'na'});
+  if(cfg.start&&(kind==='weekly'?a<cfg.start:b<cfg.start)) return Object.assign(out,{st:'na',before:true});
+  const t=todayIso();
+  return Object.assign(out,{st:b<t?'late':a<=t?'open':'future'});
+}
+function parseWeekKey(k){ const m=/^(\d{4})-W(\d{2})$/.exec(k); const wk1=monday(m[1]+'-01-04'); return addDays(wk1,(+m[2]-1)*7); }
+const weekLabel = mon => 'Week '+isoWeekOf(mon).n+' ('+fmtShort(mon)+' – '+fmtShort(addDays(mon,6))+')';
+const fmtShort = s => parse(s).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+function monthCranes(cfg){ const seen=new Set(), out=[]; Object.keys(cfg.groups||{}).forEach(g=>(cfg.groups[g]||[]).forEach(c=>{ if(!seen.has(regKey(c))){ seen.add(regKey(c)); out.push({crane:c,group:g}); } })); return out; }
+// everything that still needs doing for one customer: this week, this month, and anything missed since the register started
+function regSummary(cfg){
+  const t=todayIso(), wk=isoWeekOf(t), ym=t.slice(0,7);
+  const weekly=(cfg.weekly||[]).map(c=>({crane:c,cell:regCell(cfg,c,'weekly',wk.key)}));
+  const grp=monthGroups(cfg,+ym.slice(5,7)-1).join(' + ');
+  const monthly=groupCranes(cfg,monthGroups(cfg,+ym.slice(5,7)-1)).map(c=>({crane:c,cell:regCell(cfg,c,'monthly',ym)}));
+  const late=[];
+  if(cfg.start){
+    for(let m=(monday(cfg.start)<cfg.start?addDays(monday(cfg.start),7):monday(cfg.start)); m<wk.mon && late.length<400; m=addDays(m,7)){ const k=isoWeekOf(m).key; (cfg.weekly||[]).forEach(c=>{ const x=regCell(cfg,c,'weekly',k); if(x.st==='late') late.push({crane:c,kind:'weekly',label:weekLabel(m),period:k}); }); }
+    for(let d=new Date(+cfg.start.slice(0,4),+cfg.start.slice(5,7)-1,1); iso(d).slice(0,7)<ym; d.setMonth(d.getMonth()+1)){ const k=iso(d).slice(0,7); monthCranes(cfg).forEach(({crane})=>{ const x=regCell(cfg,crane,'monthly',k); if(x.st==='late') late.push({crane,kind:'monthly',label:MONTHS[d.getMonth()]+' '+d.getFullYear(),period:k}); }); }
+  }
+  const openW=weekly.filter(x=>x.cell.st==='open'||x.cell.st==='late'), openM=monthly.filter(x=>x.cell.st==='open'||x.cell.st==='late');
+  return {cfg,wk,ym,grp,weekly,monthly,late,outstanding:openW.length+openM.length+late.length,openW,openM};
+}
+function regTotals(){ const all=regCfgs().map(regSummary); return {all,outstanding:all.reduce((n,x)=>n+x.outstanding,0),late:all.reduce((n,x)=>n+x.late.length,0)}; }
+function regChip(x){ const st=x.cell.st; const cls=st==='done'?'green':st==='na'?'grey':st==='late'?'red':'amber'; return `<span class="pill ${cls}">${esc(x.crane)} ${st==='done'?'✓':st==='na'?'–':st==='late'?'missed':'to do'}</span>`; }
+function regCard(){
+  const tot=regTotals(); if(!tot.all.length) return '';
+  return tot.all.map(x=>{
+    const wDone=x.weekly.filter(y=>y.cell.st==='done').length, mDone=x.monthly.filter(y=>y.cell.st==='done').length;
+    const lateBy={}; x.late.forEach(l=>{ (lateBy[l.label]=lateBy[l.label]||[]).push(l.crane); });
+    return `<div class="card"><h2>Crane checks — ${esc(x.cfg.customer)} <span class="mute small">${x.outstanding?x.outstanding+' outstanding':'all up to date'}</span></h2>
+      ${x.weekly.length?`<b>Weekly · ${esc(weekLabel(x.wk.mon))}</b> <span class="mute small">${wDone} of ${x.weekly.length} done</span><div class="regchips">${x.weekly.map(regChip).join('')}</div>`:''}
+      ${x.grp?`<b>Monthly · ${MONTHS[+x.ym.slice(5,7)-1]} (${esc(x.grp)})</b> <span class="mute small">${mDone} of ${x.monthly.length} done</span><div class="regchips">${x.monthly.map(regChip).join('')}</div>`:`<span class="mute">No monthly checks scheduled this month.</span>`}
+      ${x.late.length?`<b style="color:var(--red)">Missed earlier</b><div class="regchips">${Object.keys(lateBy).slice(-8).map(l=>`<span class="pill red">${esc(l)}: ${esc(lateBy[l].join(', '))}</span>`).join('')}</div>`:''}
+      <button data-gotab="register">Open the register</button></div>`; }).join('');
+}
+
+function viewRegister(){
+  const cfgs=regCfgs(), admin=portalOK();
+  if(!cfgs.length){ $('v-register').innerHTML='<div class="card"><h2>Crane check register</h2><span class="mute">No register is set up yet.</span>'+(admin?' <p><button class="primary" id="regAdd">Set up a customer</button></p>':'')+'</div>'; if(admin&&$('regAdd')) $('regAdd').onclick=regNewCustomer; return; }
+  if(!cfgs.some(c=>c.customer===regCust)) regCust=cfgs[0].customer;
+  const cfg=cfgs.find(c=>c.customer===regCust), sum=regSummary(cfg), t=todayIso(), wk=isoWeekOf(t);
+  if(!regWeekFrom) regWeekFrom=addDays(wk.mon,-7*8);
+  const weeks=[]; for(let i=0;i<13;i++) weeks.push(addDays(regWeekFrom,7*i));
+  const cell=(x,kind,period,crane)=>{ const sym=x.st==='done'?'✓':x.st==='late'?'!':x.st==='open'?'•':x.st==='na'?'–':''; const sub=x.st==='done'?(x.sent?'sent':(x.auto&&!x.row?'auto':'')):(x.shut?'S/D':''); return `<td class="rc ${x.st}" data-rc="${esc(kind)}|${esc(crane)}|${esc(period)}" title="${esc(crane)} · ${esc(period)}">${sym}${sub?`<small>${sub}</small>`:''}</td>`; };
+  const wTable=(cfg.weekly||[]).length?`<div class="wrap"><table class="regtab"><tr><th>Crane</th>${weeks.map(m=>{ const w=isoWeekOf(m); return `<th ${m===wk.mon?'style="color:var(--accent)"':''}>W${w.n}<div class="mute small" style="font-weight:600">${fmtShort(m)}</div></th>`; }).join('')}</tr>
+    ${cfg.weekly.map(c=>`<tr><td><b>${esc(c)}</b></td>${weeks.map(m=>cell(regCell(cfg,c,'weekly',isoWeekOf(m).key),'weekly',isoWeekOf(m).key,c)).join('')}</tr>`).join('')}</table></div>`:'<span class="mute">No weekly cranes.</span>';
+  const mc=monthCranes(cfg);
+  const mTable=mc.length?`<div class="wrap"><table class="regtab"><tr><th>${regYear}</th>${mc.map(x=>`<th>${esc(x.crane)}</th>`).join('')}</tr>
+    ${MONTHS.map((n,i)=>{ const ym=regYear+'-'+String(i+1).padStart(2,'0'), g=monthGroups(cfg,i).join('+'); return `<tr><td><b>${n.slice(0,3)}</b> <span class="mute small">${esc(g)}</span></td>${mc.map(x=>cell(regCell(cfg,x.crane,'monthly',ym),'monthly',ym,x.crane)).join('')}</tr>`; }).join('')}</table></div>`:'<span class="mute">No monthly cranes.</span>';
+  const sel=cfgs.length>1?`<p style="display:flex;gap:6px;flex-wrap:wrap">${cfgs.map(c=>`<button data-rcust="${esc(c.customer)}" class="${c.customer===regCust?'primary':''}">${esc(c.customer)}</button>`).join('')}</p>`:'';
+  $('v-register').innerHTML=`${sel}<div class="card"><h2>Crane check register — ${esc(cfg.customer)} <span class="mute small">${sum.outstanding?sum.outstanding+' outstanding':'all up to date'}</span></h2>
+    <p class="small mute" style="margin:0 0 8px">Tap a square to record a check. ✓ done · <b>!</b> missed · • due this period · – not required. Squares tick themselves when an <b>Inspection</b> report for that crane is saved in the report app (shown as “auto”). Counting starts from ${esc(uk(cfg.start)||'the beginning')}.</p></div>
+    <div class="card"><h2>Weekly checks</h2><p style="margin:0 0 8px"><button id="rwPrev">◀ 4 weeks</button> <button id="rwNow">This week</button> <button id="rwNext">4 weeks ▶</button></p>${wTable}</div>
+    <div class="card"><h2>Monthly checks</h2><p style="margin:0 0 8px"><button id="ryPrev">◀</button> <b>${regYear}</b> <button id="ryNext">▶</button></p>${mTable}</div>
+    ${admin?regSetupHtml(cfg):''}`;
+  const R=$('v-register');
+  R.querySelectorAll('[data-rcust]').forEach(b=>b.onclick=()=>{ regCust=b.dataset.rcust; viewRegister(); });
+  R.querySelectorAll('td[data-rc]').forEach(td=>td.onclick=()=>{ const [k,c,p]=td.dataset.rc.split('|'); regEdit(cfg,c,k,p); });
+  $('rwPrev').onclick=()=>{ regWeekFrom=addDays(regWeekFrom,-28); viewRegister(); }; $('rwNext').onclick=()=>{ regWeekFrom=addDays(regWeekFrom,28); viewRegister(); }; $('rwNow').onclick=()=>{ regWeekFrom=addDays(wk.mon,-56); viewRegister(); };
+  $('ryPrev').onclick=()=>{ regYear--; viewRegister(); }; $('ryNext').onclick=()=>{ regYear++; viewRegister(); };
+  if(admin) bindRegSetup(cfg);
+}
+function regEdit(cfg,crane,kind,period){
+  const x=regCell(cfg,crane,kind,period), label=kind==='weekly'?weekLabel(parseWeekKey(period)):MONTHS[+period.slice(5,7)-1]+' '+period.slice(0,4);
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card"><h2>${esc(crane)} <span class="mute small">${esc(label)}</span></h2>
+   ${x.auto&&!(x.row&&x.row.done_on)?`<div class="note">Ticked automatically from inspection report ${esc(x.auto.report_no||'')} dated ${uk(x.auto.report_date)}.</div>`:''}
+   <label class="small">Check done on<input type="date" id="reD" value="${esc((x.row&&x.row.done_on)||'')}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px"><input type="checkbox" id="reS" ${x.sent?'checked':''}> Report sent to the customer</label>
+   ${kind==='weekly'?`<label class="small" style="display:block;margin-top:4px"><input type="checkbox" id="reSD" ${x.shut?'checked':''}> Shutdown needed</label>`:''}
+   <label class="small" style="display:block;margin-top:4px"><input type="checkbox" id="reNA" ${x.row&&x.row.na?'checked':''}> Not required this period</label>
+   <label class="small" style="display:block;margin-top:8px">Note<input id="reN" value="${esc((x.row&&x.row.note)||'')}" style="width:100%"></label>
+   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="reSave">Save</button><button id="reToday">Done today</button>${x.row?'<button id="reClear">Clear</button>':''}<button id="reX">Cancel</button></p><div id="reMsg" class="small mute"></div></div>`;
+  document.body.appendChild(m);
+  const close=()=>m.remove(), $$=i=>m.querySelector('#'+i);
+  m.onclick=e=>{ if(e.target===m) close(); }; $$('reX').onclick=close;
+  $$('reToday').onclick=()=>{ $$('reD').value=todayIso(); };
+  const call=async(fn)=>{ $$('reMsg').textContent='Saving…'; try{ await fn(); D.regChecks=await getAll('reg_checks','select=*'); close(); render(); }catch(e){ $$('reMsg').textContent='Could not save: '+e.message; } };
+  $$('reSave').onclick=()=>call(async()=>{ const body={customer:cfg.customer,crane,period,done_on:$$('reD').value||null,report_sent:$$('reS').checked,shutdown:$$('reSD')?$$('reSD').checked:false,na:$$('reNA').checked,note:$$('reN').value.trim()||null,updated_at:new Date().toISOString()};
+    const r=await api('/rest/v1/reg_checks?on_conflict=customer,crane,period',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); });
+  if($$('reClear')) $$('reClear').onclick=()=>call(async()=>{ const r=await api('/rest/v1/reg_checks?customer=eq.'+encodeURIComponent(cfg.customer)+'&crane=eq.'+encodeURIComponent(x.row.crane)+'&period=eq.'+encodeURIComponent(period),{method:'DELETE'}); if(!r.ok) throw new Error(await r.text()); });
+}
+function regSetupHtml(cfg){
+  const gnames=Object.keys(cfg.groups||{});
+  return `<details class="card"><summary><b>Register setup</b> <span class="mute small">cranes, monthly rotation, start date (office admins)</span></summary>
+   <p class="small mute" style="margin:8px 0">Separate crane names with commas. Tick which groups of cranes are checked in each month.</p>
+   <label class="small">Counting starts from<input type="date" id="rsStart" value="${esc(cfg.start||'')}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px">Weekly cranes<input id="rsWeekly" value="${esc((cfg.weekly||[]).join(', '))}" style="width:100%"></label>
+   <label class="small" style="display:block;margin-top:8px">Monthly groups (one per line, like <b>PL: PL1, PL2</b>)<textarea id="rsGroups" rows="4" style="width:100%">${esc(gnames.map(g=>g+': '+(cfg.groups[g]||[]).join(', ')).join('\n'))}</textarea></label>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px">${MONTHS.map((n,i)=>`<div class="small"><b>${n}</b><br>${gnames.map(g=>`<label style="display:inline-block;margin-right:8px"><input type="checkbox" data-rot="${i}" data-g="${esc(g)}" ${monthGroups(cfg,i).includes(g)?'checked':''}> ${esc(g)}</label>`).join('')}</div>`).join('')}</div>
+   <p style="margin:12px 0 0"><button class="primary" id="rsSave">Save setup</button> <button id="regAdd">Add another customer</button> <span id="rsMsg" class="small mute"></span></p>
+   <p class="small mute" style="margin:8px 0 0">After changing the group names, save once and then tick the months again.</p></details>`;
+}
+function bindRegSetup(cfg){
+  const list=s=>String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+  $('regAdd').onclick=regNewCustomer;
+  $('rsSave').onclick=async()=>{
+    const groups={}; $('rsGroups').value.split('\n').forEach(l=>{ const i=l.indexOf(':'); if(i<1) return; const g=l.slice(0,i).trim(); if(g) groups[g]=list(l.slice(i+1)); });
+    const rotation=MONTHS.map((n,i)=>[...document.querySelectorAll('input[data-rot="'+i+'"]')].filter(c=>c.checked&&groups[c.dataset.g]).map(c=>c.dataset.g));
+    const data={start:$('rsStart').value||null,weekly:list($('rsWeekly').value),groups,rotation};
+    $('rsMsg').textContent='Saving…';
+    try{ const r=await api('/rest/v1/reg_config?on_conflict=customer',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({customer:cfg.customer,data,updated_at:new Date().toISOString()})}); if(!r.ok) throw new Error(await r.text()); D.regCfg=await getAll('reg_config','select=*'); render(); }
+    catch(e){ $('rsMsg').textContent='Could not save: '+e.message; }
+  };
+}
+async function regNewCustomer(){
+  const name=(prompt('Customer name, exactly as it appears on their reports:')||'').trim(); if(!name) return;
+  try{ const r=await api('/rest/v1/reg_config?on_conflict=customer',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({customer:name,data:{start:todayIso().slice(0,8)+'01',weekly:[],groups:{},rotation:Array(12).fill([])}})}); if(!r.ok) throw new Error(await r.text()); D.regCfg=await getAll('reg_config','select=*'); regCust=name; render(); }
+  catch(e){ alert('Could not add: '+e.message); }
+}
+document.addEventListener('click',e=>{ const r=e.target.closest&&e.target.closest('.dentry[data-de]'); if(r&&!r.closest('#v-diary')){ const x=D.diary.find(z=>z.id===r.dataset.de); if(x) diaryEdit(x,r.dataset.dd); return; } const b=e.target.closest&&e.target.closest('[data-gotab]'); if(b){ tab=b.dataset.gotab; store.set('tab',tab); render(); window.scrollTo({top:0}); } });
+
+// ---------- office diary: meetings, reminders, where engineers have been. Today's entries show on Overview and Today ----------
+let diaryView='week', diaryDate=todayIso();
+const DKINDS=['Meeting','Reminder','Engineer','Note'];
+const dkLabel = k => k==='Engineer'?'Engineer visit':k;
+function diaryOn(day){
+  const out=[]; D.diary.forEach(e=>{
+    let hit=e.entry_date===day;
+    if(!hit&&e.repeat&&day>e.entry_date&&(!e.until||day<=e.until)){
+      const diff=Math.round((parse(day)-parse(e.entry_date))/864e5);
+      hit=e.repeat==='weekly'?diff%7===0:e.repeat==='fortnightly'?diff%14===0:e.repeat==='monthly'?parse(day).getDate()===parse(e.entry_date).getDate():e.repeat==='daily'?([0,6].indexOf(parse(day).getDay())<0):false;
+    }
+    if(hit) out.push(e);
+  });
+  return out.sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||'')||a.title.localeCompare(b.title));
+}
+const diaryOverdue = () => D.diary.filter(e=>!e.repeat&&e.kind==='Reminder'&&!e.done&&e.entry_date<todayIso()).sort((a,b)=>a.entry_date.localeCompare(b.entry_date));
+function diaryRow(e,day,showDate){
+  const od=!e.repeat&&e.kind==='Reminder'&&!e.done&&e.entry_date<todayIso();
+  return `<div class="dentry ${e.done&&!e.repeat?'done':''}" data-de="${esc(e.id)}" data-dd="${esc(day||e.entry_date)}"><span class="tm">${esc(e.start_time||'All day')}</span><span style="flex:1"><span class="tt"><b>${esc(e.title)}</b></span> <span class="pill ${e.kind==='Meeting'?'amber':e.kind==='Reminder'?'red':'grey'}">${esc(dkLabel(e.kind))}</span>${e.repeat?' <span class="mute small">↻ '+esc(e.repeat)+'</span>':''}${od?` <span class="pill red">from ${esc(uk(e.entry_date))}</span>`:''}${showDate?` <span class="mute small">${esc(fmtDay(day||e.entry_date))}</span>`:''}${e.who?`<div class="small mute">${esc(e.who)}</div>`:''}${e.notes?`<div class="small" style="white-space:pre-wrap">${esc(e.notes)}</div>`:''}</span></div>`;
+}
+function diaryCard(){
+  const t=todayIso(), today=diaryOn(t), over=diaryOverdue(), next=[];
+  for(let i=1;i<=7;i++){ const d=addDays(t,i); diaryOn(d).forEach(e=>next.push({e,d})); }
+  if(!D.diary.length) return `<div class="card"><h2>Diary <span class="mute small">nothing in the diary yet</span></h2><button data-gotab="diary">Open the diary</button></div>`;
+  return `<div class="card"><h2>Diary — today <span class="mute small">${today.length+over.length?today.length+' today'+(over.length?' · '+over.length+' overdue reminder'+(over.length===1?'':'s'):''):'nothing today'}</span></h2>
+    ${over.map(e=>diaryRow(e,e.entry_date,true)).join('')}${today.map(e=>diaryRow(e,t)).join('')}${!today.length&&!over.length?'<span class="mute">Nothing in the diary for today.</span>':''}
+    ${next.length?`<p class="small mute" style="margin:10px 0 4px"><b>Coming up (next 7 days)</b></p>${next.slice(0,8).map(x=>diaryRow(x.e,x.d,true)).join('')}${next.length>8?`<p class="small mute">…and ${next.length-8} more</p>`:''}`:''}
+    <p style="margin:8px 0 0"><button data-gotab="diary">Open the diary</button></p></div>`;
+}
+function viewDiary(){
+  const t=todayIso(); const R=$('v-diary');
+  const names=[...new Set([...holStaff(),...D.people.map(p=>p.name)].filter(Boolean))];
+  let body='';
+  if(diaryView==='week'){
+    const mon=monday(diaryDate), days=[...Array(7)].map((_,i)=>addDays(mon,i));
+    body=days.map(d=>{ const es=diaryOn(d); return `<div class="dday ${d===t?'today':''}"><div style="display:flex;justify-content:space-between;align-items:center"><b>${esc(fmtDay(d))}${d===t?' · today':''}</b><button data-dnew="${d}">＋ Add</button></div>${es.length?es.map(e=>diaryRow(e,d)).join(''):'<span class="mute small">Nothing</span>'}</div>`; }).join('');
+  }else{
+    const f=parse(diaryDate.slice(0,8)+'01'), start=monday(iso(f)), cells=[...Array(42)].map((_,i)=>addDays(start,i));
+    body=`<div class="dgrid">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>`<div class="dh">${x}</div>`).join('')}${cells.map(d=>{ const es=diaryOn(d); const out=d.slice(0,7)!==diaryDate.slice(0,7); return `<button class="dcell ${out?'out':''} ${d===t?'today':''}" data-dgo="${d}"><b>${+d.slice(8)}</b>${es.length>0?`<span class="dn">${es.length}</span>`:''}${es.slice(0,3).map(e=>`<span class="de ${e.kind} ${e.done?'done':''}">${esc((e.start_time?e.start_time+' ':'')+e.title)}</span>`).join('')}${es.length>3?`<span class="small mute">+${es.length-3} more</span>`:''}</button>`; }).join('')}</div>`;
+  }
+  const label=diaryView==='week'?'Week of '+fmtShort(monday(diaryDate)):parse(diaryDate).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  R.innerHTML=`<div class="card"><h2>Diary</h2><p style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px"><button id="dPrev">◀</button><b style="min-width:150px;text-align:center">${esc(label)}</b><button id="dNext">▶</button><button id="dToday">Today</button><button id="dW" class="${diaryView==='week'?'primary':''}">Week</button><button id="dM" class="${diaryView==='month'?'primary':''}">Month</button><button class="primary" id="dAdd">＋ New entry</button></p>
+    <p class="small mute" style="margin:0 0 10px">Meetings, reminders, and where engineers have been. Whatever is in the diary for today shows on the Overview and Today tabs. Reminders stay on Today until you tick them done.</p>${body}</div>
+    <datalist id="dNames">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
+  const step=n=>{ if(diaryView==='week') diaryDate=addDays(diaryDate,7*n); else { const d=parse(diaryDate); d.setMonth(d.getMonth()+n,1); diaryDate=iso(d); } viewDiary(); };
+  $('dPrev').onclick=()=>step(-1); $('dNext').onclick=()=>step(1); $('dToday').onclick=()=>{ diaryDate=t; viewDiary(); };
+  $('dW').onclick=()=>{ diaryView='week'; viewDiary(); }; $('dM').onclick=()=>{ diaryView='month'; viewDiary(); };
+  $('dAdd').onclick=()=>diaryEdit(null,diaryView==='week'?t:diaryDate);
+  R.querySelectorAll('[data-dnew]').forEach(b=>b.onclick=()=>diaryEdit(null,b.dataset.dnew));
+  R.querySelectorAll('[data-dgo]').forEach(b=>b.onclick=()=>{ diaryDate=b.dataset.dgo; diaryView='week'; viewDiary(); });
+  bindDiaryRows(R);
+}
+function bindDiaryRows(root){ root.querySelectorAll('[data-de]').forEach(r=>r.onclick=()=>{ const e=D.diary.find(x=>x.id===r.dataset.de); if(e) diaryEdit(e,r.dataset.dd); }); }
+function diaryEdit(e,day){
+  const isNew=!e; e=e||{entry_date:day||todayIso(),start_time:'',title:'',kind:'Meeting',who:'',notes:'',repeat:'',until:null,done:false};
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto"><h2>${isNew?'New diary entry':'Diary entry'}</h2>
+   <label class="small">Title<input id="deT" value="${esc(e.title)}" placeholder="e.g. Site meeting at William Cook" style="width:100%"></label>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><label class="small">Date<input type="date" id="deD" value="${esc(e.entry_date)}" style="width:100%"></label><label class="small">Time (optional)<input type="time" id="deTm" value="${esc(e.start_time||'')}" style="width:100%"></label></div>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><label class="small">Type<select id="deK" style="width:100%">${DKINDS.map(k=>`<option value="${k}" ${e.kind===k?'selected':''}>${dkLabel(k)}</option>`).join('')}</select></label><label class="small">Who<input id="deW" list="dNames" value="${esc(e.who||'')}" placeholder="Rob, Maxine…" style="width:100%"></label></div>
+   <label class="small" style="display:block;margin-top:8px">Notes<textarea id="deN" rows="3" style="width:100%">${esc(e.notes||'')}</textarea></label>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><label class="small">Repeats<select id="deR" style="width:100%">${[['','Does not repeat'],['weekly','Every week'],['fortnightly','Every 2 weeks'],['monthly','Every month (same date)'],['daily','Every weekday']].map(([v,l])=>`<option value="${v}" ${(e.repeat||'')===v?'selected':''}>${l}</option>`).join('')}</select></label><label class="small">Repeat until (optional)<input type="date" id="deU" value="${esc(e.until||'')}" style="width:100%"></label></div>
+   <label class="small" id="deDoneRow" style="display:block;margin-top:8px"><input type="checkbox" id="deDone" ${e.done?'checked':''}> Done (reminders disappear from Today once ticked)</label>
+   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="deSave">Save</button>${isNew?'':'<button id="deDel">Delete</button>'}<button id="deX">Cancel</button></p><div id="deMsg" class="small mute"></div></div>`;
+  document.body.appendChild(m);
+  const $$=i=>m.querySelector('#'+i), close=()=>m.remove();
+  m.onclick=ev=>{ if(ev.target===m) close(); }; $$('deX').onclick=close;
+  const refresh=async()=>{ D.diary=await getAll('diary_entries','select=*&order=entry_date.asc'); close(); render(); };
+  const sync=()=>{ $$('deDoneRow').style.display=($$('deK').value==='Reminder'&&!$$('deR').value)?'block':'none'; }; $$('deK').onchange=sync; $$('deR').onchange=sync; sync();
+  $$('deSave').onclick=async()=>{
+    const title=$$('deT').value.trim(), date=$$('deD').value; if(!title||!date){ $$('deMsg').textContent='Add a title and a date.'; return; }
+    const body={entry_date:date,start_time:$$('deTm').value||null,title,kind:$$('deK').value,who:$$('deW').value.trim()||null,notes:$$('deN').value.trim()||null,repeat:$$('deR').value,until:$$('deU').value||null,done:$$('deDone').checked&&$$('deK').value==='Reminder'&&!$$('deR').value,updated_at:new Date().toISOString()};
+    $$('deMsg').textContent='Saving…';
+    try{ const r=isNew?await api('/rest/v1/diary_entries',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(body)}):await api('/rest/v1/diary_entries?id=eq.'+encodeURIComponent(e.id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(body)}); if(!r.ok) throw new Error(await r.text()); await refresh(); }
+    catch(err){ $$('deMsg').textContent='Could not save: '+err.message; }
+  };
+  if($$('deDel')) $$('deDel').onclick=async()=>{ if(!confirm('Delete this diary entry'+(e.repeat?' (and every repeat of it)':'')+'?')) return; try{ const r=await api('/rest/v1/diary_entries?id=eq.'+encodeURIComponent(e.id),{method:'DELETE'}); if(!r.ok) throw new Error(await r.text()); await refresh(); }catch(err){ $$('deMsg').textContent='Could not delete: '+err.message; } };
+}
+
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','Purchase orders'],['quotes','Quotes'],['ras','Risk assessments'],['portals','Customer portals'],['chat','Engineers chat'],['fleet','Vans & tools'],['visits','Visit requests']];
+const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['register','Crane checks'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
-  if((tab==='portals'||tab==='visits')&&!portalOK()) tab='overview';
+  if(tab==='visits') tab='bookings';
+  if((tab==='portals'||tab==='backups')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={due:due.filter(d=>d.days<0).length, repairs:rep.open.length, quotes:(D.quotes||[]).filter(q=>q.status==='new').length, po:D.pos.filter(p=>p.status==='pending'||(p.status==='approved'&&p.order_status==='to_order')).length+(D.quotes||[]).filter(q=>q.status==='new').length, bookings:D.bookings.filter(b=>b.status==='booked').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length, visits:D.visits.filter(v=>v.status==='new').length};
-  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='visits')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length+D.visits.filter(v=>v.status==='new').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length};
+  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='backups')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,quotes:viewQuotes,ras:viewRas,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,visits:viewVisits})[tab]();
+  $('v-visits').classList.toggle('hide',!(tab==='bookings'&&portalOK()));
+  if(tab==='bookings'&&portalOK()) viewVisits();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,register:viewRegister,diary:viewDiary,backups:viewBackups})[tab]();
 }
-async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
+async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
-async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; tab=store.get('tab')||'overview'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); }
+async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); }
 
 $('go').onclick=async()=>{
   $('go').disabled=true;
