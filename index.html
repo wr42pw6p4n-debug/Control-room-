@@ -229,7 +229,8 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-register" class="hide"></section>
     <section id="v-diary" class="hide"></section>
     <section id="v-backups" class="hide"></section>
-  </main>
+  <p id="buildTag" class="small mute" style="text-align:center;margin:24px 0 8px"></p>
+</main>
 </div>
 
 <script>
@@ -288,7 +289,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-12.1';
+const APP_BUILD='2026-11-13.1';
 let D = {diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -334,7 +335,7 @@ async function load(){
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
   if(problems.length) $('msg').innerHTML = '<div class="err">'+problems.map(esc).join('<br>')+'</div>';
   if(D.jobsBlocked) $('msg').innerHTML += '<div class="note">This login can\'t see job sheets. Add the office user to the Job Manager members list in Supabase (table <b>js_members</b>).</div>';
-  $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD; $('refresh').title=$('synced').textContent; $('refresh').textContent='↻ '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  $('buildTag').textContent='Control Room build '+APP_BUILD; $('synced').textContent = 'Updated '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' · build '+APP_BUILD; $('refresh').title=$('synced').textContent; $('refresh').textContent='↻ '+D.loaded.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 
 // ---------- engineer names (Job Manager uses "Dave" and "Dave Boler" for the same person) ----------
@@ -591,6 +592,21 @@ async function textEngineer(b){
   }
   window.location.href='sms:'+num+'?&body='+encodeURIComponent(bookingText(b));
 }
+// After a job is issued to someone with no login of their own (Jordan, Ashleigh, Jono, Ricky) there is no phone alert, so
+// offer the ways to send it: a text message, WhatsApp, or copy the wording.
+function offerSend(b){
+  const sp=D.staffPhones.find(x=>x.name===b.engineer_name); if(!sp) return;
+  const num=String(sp.phone||'').replace(/[^0-9+]/g,''), intl=num.replace(/^\+/,'').replace(/^0/,'44'), txt=bookingText(b);
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card"><h2>Send the job to ${esc(sp.name)}</h2>
+    <p class="small mute" style="margin:0 0 8px">${esc(sp.name)} has no login of their own, so there is no phone alert. Choose how to send it${num?' to '+esc(sp.phone):''}:</p>
+    <pre style="white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.4 inherit;margin:0 0 12px">${esc(txt)}</pre>
+    ${num?`<p style="display:flex;gap:8px;flex-wrap:wrap;margin:0"><a class="btn primary" id="osText" href="sms:${esc(num)}?&body=${encodeURIComponent(txt)}" style="text-decoration:none;display:inline-block;padding:10px 14px;border-radius:10px;background:var(--accent);color:#172334;font-weight:800">Text message</a><a id="osWa" href="https://wa.me/${esc(intl)}?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid var(--line);font-weight:800;color:inherit">WhatsApp</a><button id="osCopy">Copy message</button><button id="osX">Close</button></p>`:`<p class="err">No mobile number saved for ${esc(sp.name)}. Add it under “Engineer mobile numbers” on this tab.</p><p><button id="osCopy">Copy message</button> <button id="osX">Close</button></p>`}
+    <div id="osMsg" class="small mute" style="margin-top:8px"></div></div>`;
+  document.body.appendChild(m);
+  const q=i=>m.querySelector('#'+i); m.onclick=e=>{ if(e.target===m) m.remove(); }; q('osX').onclick=()=>m.remove();
+  q('osCopy').onclick=async()=>{ q('osMsg').textContent=(await copyText(txt))?'Copied. Paste it into any message.':'Could not copy. Select the text above and copy it.'; };
+}
 function viewBookings(){
   const people=D.people, opt=(sel,nm)=>people.filter(x=>x.name!=='keyengineeringstaff').map(x=>`<option value="${esc(x.id)}" ${x.id===sel&&!(nm&&D.staffPhones.some(s=>s.name===nm))?'selected':''}>${esc(cap(x.name))}</option>`).join('')+D.staffPhones.map(x=>`<option value="${esc('name:'+x.name)}" ${nm===x.name?'selected':''}>${esc(x.name)}</option>`).join('');
   const open=D.bookings.filter(b=>b.status==='booked');
@@ -641,6 +657,7 @@ function viewBookings(){
       if(wantIssue&&made) msg=await issueBooking(made,eng);
       else if(eng&&made){ const pe=D.people.find(x=>x.id===eng); await patchBooking(made.id,{engineer_id:eng,engineer_name:cap(pe&&pe.name)}); }
       await load(); render(); say(msg,false);
+      if(wantIssue&&made&&String(eng||'').startsWith('name:')){ const nb=D.bookings.find(x=>x.id===made.id); if(nb) offerSend(nb); }
     }catch(err){ say('Could not save: '+err.message,true); $('bkForm').querySelectorAll('button').forEach(b=>b.disabled=false); }
   };
   $('v-bookings').querySelectorAll('button[data-act]').forEach(btn=>btn.onclick=async()=>{
@@ -648,9 +665,9 @@ function viewBookings(){
     btn.disabled=true;
     try{
       const act=btn.dataset.act;
-      if(act==='issue'){ const eng=document.querySelector(`select[data-eng="${b.id}"]`).value; const msg=await issueBooking(b,eng); await load(); render(); say(msg,false); return; }
-      if(act==='text'){ await textEngineer(b); btn.disabled=false; render(); return; }
-      if(act==='notify'&&D.staffPhones.some(x=>x.name===b.engineer_name)){ say(b.engineer_name+' has no login of their own, so use the Text button.',false); btn.disabled=false; return; }
+      if(act==='issue'){ const eng=document.querySelector(`select[data-eng="${b.id}"]`).value; const msg=await issueBooking(b,eng); await load(); render(); say(msg,false); if(String(eng||'').startsWith('name:')){ const nb=D.bookings.find(x=>x.id===b.id); if(nb) offerSend(nb); } return; }
+      if(act==='text'){ if(D.staffPhones.some(x=>x.name===b.engineer_name)&&D.staffPhones.find(x=>x.name===b.engineer_name).phone){ offerSend(b); btn.disabled=false; return; } await textEngineer(b); btn.disabled=false; render(); return; }
+      if(act==='notify'&&D.staffPhones.some(x=>x.name===b.engineer_name)){ offerSend(b); btn.disabled=false; return; }
       if(act==='notify'){ const r=await notifyEngineer(b.id); say(r.sent?'Notification sent.':r.devices?'The notification could not be delivered — use the Text button.':'That engineer has not switched on phone notifications yet — use the Text button.',!r.sent); btn.disabled=false; return; }
       if(act==='done'){ await patchBooking(b.id,{status:'done',done_at:new Date().toISOString()}); }
       if(act==='cancel'){ if(!confirm('Cancel this booking?')){btn.disabled=false;return;} await patchBooking(b.id,{status:'cancelled'}); }
