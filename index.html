@@ -364,7 +364,7 @@ function repairsList(){
       if(x.it.status!=='URGENT' && x.it.status!=='ATTN') return;
       const key=((x.r.data&&x.r.data.reportNo)||x.r.report_no||x.r.id)+'|'+slug(x.it.group)+'__'+slug(x.it.label);
       const comp=D.comps[key];
-      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp};
+      const item={r:x.r,it:x.it,eng:canon(x.r.engineer),comp,key};
       if(comp){ if((comp.done_date||'')>=cutoff) done.push(item); }
       else if(!(x.it.work&&String(x.it.work).trim())) open.push(item);
     });
@@ -542,11 +542,13 @@ function viewBookings(){
   const people=D.people, opt=(sel)=>people.map(x=>`<option value="${esc(x.id)}" ${x.id===sel?'selected':''}>${esc(cap(x.name))}</option>`).join('');
   const open=D.bookings.filter(b=>b.status==='booked');
   const out=D.bookings.filter(b=>b.status==='issued'||b.status==='accepted');
+  const stillOpen=repairsList().open;
+  const allDone=b=>b.job_type==='Repair'&&b.details&&b.details.crane!=null&&!stillOpen.some(x=>String(x.r.crane_no||'').trim().toLowerCase()===String(b.details.crane||'').trim().toLowerCase()&&String(x.r.customer||'').trim().toLowerCase()===String(b.customer||'').trim().toLowerCase());
   const cutoff=addDays(todayIso(),-7);
   const done=D.bookings.filter(b=>b.status==='done'&&(b.done_at||'').slice(0,10)>=cutoff);
   const card=(b,mode)=>`<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--card)">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between"><b>${esc(b.customer)}</b><span>${b.priority==='Urgent'?'<span class="pill red">URGENT</span> ':''}<span class="pill ${b.status==='done'?'green':b.status==='accepted'?'green':b.status==='issued'?'amber':'grey'}">${esc(b.status)}</span></span></div>
-    <div class="mute small">${esc([b.site,b.job_type,b.wanted_date?'wanted '+uk(b.wanted_date):''].filter(Boolean).join(' · '))}${b.repair_key?' · <b>auto-created from a report</b>':''}</div>
+    <div class="mute small">${esc([b.site,b.job_type,b.wanted_date?'wanted '+uk(b.wanted_date):''].filter(Boolean).join(' · '))}${b.repair_key?' · <b>auto-created from a report</b>':''}</div>${b.status!=='done'&&allDone(b)?'<div style="margin:4px 0"><span class="pill green">✓ All repairs on this crane are marked done</span> <span class="mute small">- you can mark this booking done or cancel it</span></div>':''}
     <div class="small" style="margin:6px 0">${esc(b.description)}</div>
     <div class="mute small">${b.contact||b.phone?'Contact: '+esc([b.contact,b.phone].filter(Boolean).join(' · '))+' · ':''}Booked ${uk((b.created_at||'').slice(0,10))}${b.engineer_name?' · Engineer: '+esc(b.engineer_name):''}${b.accepted_at?' · Accepted '+uk(b.accepted_at.slice(0,10)):''}</div>
     <div class="bar" style="margin:10px 0 0;padding:8px;box-shadow:none">
@@ -727,11 +729,24 @@ function viewDue(){
 
 function viewRepairs(){
   const {open,done}=repairsList();
-  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td></tr>`;
-  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button>${D.poAdmin?'<button id="rBook">Create bookings for outstanding repairs</button>':''}</div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
-  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
+  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td style="white-space:nowrap">${x.comp?'<span class="mute small">Done '+uk(x.comp.done_date)+(x.comp.note?' - '+esc(x.comp.note):'')+'</span><br><button data-reopen="'+esc(x.key)+'">Reopen</button>':'<button class="primary" data-done="'+esc(x.key)+'">Mark done</button>'}</td></tr>`;
+  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button>${D.poAdmin?'<button id="rBook">Create bookings for outstanding repairs</button>':''}</div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
+  <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
   $('rCsv').onclick=()=>csvDownload('repairs_'+todayIso()+'.csv',['Priority','Customer','Site','Crane','Group','Item','Note','Engineer','Reported'],open.map(x=>[x.it.status==='URGENT'?'Urgent':'Req attn',x.r.customer,x.r.site,x.r.crane_no,x.it.group,x.it.label,x.it.note,x.eng,uk(x.r.report_date)]));
   $('rPrint').onclick=()=>window.print();
+  const hdr={'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'};
+  $('v-repairs').querySelectorAll('button[data-done]').forEach(b=>b.onclick=async()=>{
+    const note=prompt('Mark this repair as done.\n\nOptional note (what was done):',''); if(note===null) return;
+    b.disabled=true;
+    try{ await api('/rest/v1/completions?on_conflict=key',{method:'POST',headers:hdr,body:JSON.stringify({key:b.dataset.done,done_date:todayIso(),note:note.trim()})}); await load(); render(); $('msg').innerHTML='<div class="note">Marked done. Every iPad picks it up when it next syncs (within a few minutes).</div>'; }
+    catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
+  });
+  $('v-repairs').querySelectorAll('button[data-reopen]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Reopen this repair? It goes back on the outstanding list for everyone.')) return;
+    b.disabled=true;
+    try{ await api('/rest/v1/completions?key=eq.'+encodeURIComponent(b.dataset.reopen),{method:'DELETE',headers:{Prefer:'return=minimal'}}); await load(); render(); }
+    catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
+  });
   if($('rBook')) $('rBook').onclick=async()=>{
     if(!confirm('This creates one "waiting to be issued" repair booking for each crane that has outstanding repairs (cranes that already have one are skipped). Nothing is sent to customers or engineers.\n\nContinue?')) return;
     $('rBook').disabled=true;
@@ -1411,7 +1426,8 @@ $('refresh').onclick=refresh;
 $('globalSearch').addEventListener('input',runGlobalSearch);
 $('globalSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('globalSearch').value='';runGlobalSearch();}});
 $('controlStatus').textContent='Signed-in session · last refresh shown on dashboard';
-setInterval(()=>{ if(store.get('session') && !document.hidden) refresh(); }, 5*60*1000);
+setInterval(()=>{ if(store.get('session') && !document.hidden) refresh(); }, 90*1000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && store.get('session')) refresh(); });
 if(store.get('session')) showApp(); else showLogin('');
 </script>
 </body>
