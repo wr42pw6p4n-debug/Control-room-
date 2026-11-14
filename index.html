@@ -729,8 +729,15 @@ function viewDue(){
 
 function viewRepairs(){
   const {open,done}=repairsList();
+  const eqk=x=>[x.r.customer,x.r.crane_no,x.r.id_no].map(v=>String(v||'').trim().toLowerCase()).join('|');
+  const groups=new Map(); open.forEach(x=>{ const k=eqk(x); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(x); });
+  const bookingFor=k=>D.bookings.find(b=>b.job_type==='Repair'&&b.repair_equip===k&&['booked','issued','accepted'].includes(b.status));
+  const grpHead=(k,xs)=>{ const f=xs[0], bk=bookingFor(k), urg=xs.some(x=>x.it.status==='URGENT');
+    const st=bk?(bk.status==='booked'?'<span class="pill grey">📅 In Bookings - waiting to be issued</span>':bk.status==='issued'?'<span class="pill amber">Issued to '+esc(bk.engineer_name||'engineer')+'</span>':'<span class="pill green">Accepted by '+esc(bk.engineer_name||'engineer')+'</span>'):(D.poAdmin?'<button class="primary" data-bookeq="'+esc(k)+'">Book this crane</button>':'');
+    return `<tr style="background:var(--bg)"><td colspan="7"><b>${esc(f.r.customer)}</b> · crane ${esc(f.r.crane_no||'?')}${f.r.id_no?' (ID '+esc(f.r.id_no)+')':''} · ${xs.length} item${xs.length>1?'s':''}${urg?' <span class="pill red">URGENT</span>':''} &nbsp; ${st}</td></tr>`; };
   const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td style="white-space:nowrap">${x.comp?'<span class="mute small">Done '+uk(x.comp.done_date)+(x.comp.note?' - '+esc(x.comp.note):'')+'</span><br><button data-reopen="'+esc(x.key)+'">Reopen</button>':'<button class="primary" data-done="'+esc(x.key)+'">Mark done</button>'}</td></tr>`;
-  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button>${D.poAdmin?'<button id="rBook">Create bookings for outstanding repairs</button>':''}</div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
+  const grouped=[...groups.entries()].sort((a,b)=>(b[1].some(x=>x.it.status==='URGENT')-a[1].some(x=>x.it.status==='URGENT'))||String(a[1][0].r.customer).localeCompare(String(b[1][0].r.customer))).map(([k,xs])=>grpHead(k,xs)+xs.map(row).join('')).join('');
+  $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button>${D.poAdmin?'<button id="rBook">Create bookings for outstanding repairs</button>':''}</div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${grouped}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
   <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
   $('rCsv').onclick=()=>csvDownload('repairs_'+todayIso()+'.csv',['Priority','Customer','Site','Crane','Group','Item','Note','Engineer','Reported'],open.map(x=>[x.it.status==='URGENT'?'Urgent':'Req attn',x.r.customer,x.r.site,x.r.crane_no,x.it.group,x.it.label,x.it.note,x.eng,uk(x.r.report_date)]));
   $('rPrint').onclick=()=>window.print();
@@ -746,6 +753,14 @@ function viewRepairs(){
     b.disabled=true;
     try{ await api('/rest/v1/completions?key=eq.'+encodeURIComponent(b.dataset.reopen),{method:'DELETE',headers:{Prefer:'return=minimal'}}); await load(); render(); }
     catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
+  });
+  $('v-repairs').querySelectorAll('button[data-bookeq]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    try{
+      const r=await api('/rest/v1/rpc/book_repair_crane',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_eq:b.dataset.bookeq})}); const id=await r.json();
+      await load(); render();
+      $('msg').innerHTML=id?'<div class="note">Booked. Find it in the Bookings tab under Waiting to be issued - set a date, draft the email and issue it when you are ready.</div>':'<div class="note">Nothing new was created - this crane already has a booking out with an engineer, or has no outstanding repairs.</div>';
+    }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; }
   });
   if($('rBook')) $('rBook').onclick=async()=>{
     if(!confirm('This creates one "waiting to be issued" repair booking for each crane that has outstanding repairs (cranes that already have one are skipped). Nothing is sent to customers or engineers.\n\nContinue?')) return;
