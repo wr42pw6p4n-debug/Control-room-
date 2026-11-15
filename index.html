@@ -228,6 +228,7 @@ tr.hsoon td{background:var(--ambbg)}
     <section id="v-customers" class="hide"></section>
     <section id="v-register" class="hide"></section>
     <section id="v-diary" class="hide"></section>
+    <section id="v-notes" class="hide"></section>
     <section id="v-backups" class="hide"></section>
   <p id="buildTag" class="small mute" style="text-align:center;margin:24px 0 8px"></p>
 </main>
@@ -289,13 +290,13 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-14.1';
-let D = {bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-15.1';
+let D = {notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks, diary, bkCust] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks, diary, bkCust, notesRows] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -323,10 +324,11 @@ async function load(){
     getAll('reg_config','select=*').catch(()=>[]),
     getAll('reg_checks','select=*').catch(()=>[]),
     getAll('diary_entries','select=*&order=entry_date.asc').catch(()=>[]),
-    getAll('booking_customers','select=*').catch(()=>[])
+    getAll('booking_customers','select=*').catch(()=>[]),
+    getAll('office_notes','select=*&order=created_at.asc').catch(()=>[])
   ]);
   { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile','vat'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
-  D.bkCust = bkCust||[]; D.diary = diary||[]; D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
+  D.notes = notesRows||[]; D.bkCust = bkCust||[]; D.diary = diary||[]; D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
   D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
@@ -458,6 +460,7 @@ function viewOverview(){
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
     <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
     <button class="alert-card ${hs.offToday.length?'warning':'good'}" id="alertOff"><span class="alert-symbol">🏖</span><span><strong>${hs.offToday.length}</strong><span>${hs.offToday.length?'Off today: '+hs.offToday.map(esc).join(', '):'Nobody off today'}</span></span></button>
+    <button class="alert-card ${notesLate().length?'danger':notesOpen().length?'warning':'good'}" id="alertNotes"><span class="alert-symbol">📝</span><span><strong>${notesOpen().length}</strong><span>Notes to do${notesLate().length?' · '+notesLate().length+' overdue':''}</span></span></button>
     <button class="alert-card ${diaryOverdue().length?'danger':diaryOn(todayIso()).length?'warning':'good'}" id="alertDiary"><span class="alert-symbol">📓</span><span><strong>${diaryOn(todayIso()).length}</strong><span>Diary today${diaryOverdue().length?' · '+diaryOverdue().length+' overdue reminder'+(diaryOverdue().length===1?'':'s'):''}</span></span></button>
     ${regTotals().all.length?`<button class="alert-card ${regTotals().late?'danger':regTotals().outstanding?'warning':'good'}" id="alertReg"><span class="alert-symbol">☑</span><span><strong>${regTotals().outstanding}</strong><span>Crane checks outstanding${regTotals().late?' ('+regTotals().late+' missed)':''}</span></span></button>`:''}
     <button class="alert-card ${hs.starting.length||hs.pending?'warning':'good'}" id="alertHol"><span class="alert-symbol">📅</span><span><strong>${hs.starting.length}</strong><span>Holidays starting within 14 days${hs.pending?' · '+hs.pending+' to approve':''}</span></span></button>
@@ -470,6 +473,7 @@ function viewOverview(){
     <div class="tile"><b>${D.reports.length}</b><span>Reports loaded</span></div>
   </div>
   ${offCard(14)}
+  ${notesCard()}
   ${diaryCard()}
   ${regCard()}
   <div class="overview-lower">
@@ -489,7 +493,7 @@ function viewOverview(){
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertReg','register'],['alertDiary','diary']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertNotes','notes'],['alertReg','register'],['alertDiary','diary']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -529,6 +533,7 @@ function viewToday(){
   const progBody=d.prog.length?`<table><tr><th>Job</th><th>Customer / site</th><th>Type</th><th>Engineers</th></tr>${d.prog.map(j=>{const x=j.data;return `<tr><td>${esc(x.job||j.id)}</td><td>${esc(x.customerName||x.customer||'')}<div class="mute small">${esc(x.site||'')}</div></td><td>${esc(x.type||'')}</td><td>${esc((x.engineers||[]).map(d.canon).join(', '))}</td></tr>`;}).join('')}</table>`:none('No jobs in progress.');
   $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting · ${holSummary().offToday.length} off today</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
     offCard(14)+
+    notesCard()+
     diaryCard()+
     regCard()+
     sec('Services, inspections &amp; LOLER — overdue and next 14 days',d.due.length,dueBody)+
@@ -1685,19 +1690,56 @@ function diaryEdit(e,day){
   if($$('deDel')) $$('deDel').onclick=async()=>{ if(!confirm('Delete this diary entry'+(e.repeat?' (and every repeat of it)':'')+'?')) return; try{ const r=await api('/rest/v1/diary_entries?id=eq.'+encodeURIComponent(e.id),{method:'DELETE'}); if(!r.ok) throw new Error(await r.text()); await refresh(); }catch(err){ $$('deMsg').textContent='Could not delete: '+err.message; } };
 }
 
+// ---------- quick notes: remind-me-to-do-this list. Open notes show on Overview and Today until ticked ----------
+const notesOpen = () => D.notes.filter(n=>!n.done).sort((a,b)=>(a.due_date||'9999').localeCompare(b.due_date||'9999')||String(a.created_at).localeCompare(String(b.created_at)));
+const notesLate = () => notesOpen().filter(n=>n.due_date&&n.due_date<todayIso());
+function noteRow(n){
+  const late=n.due_date&&n.due_date<todayIso(), td=n.due_date===todayIso();
+  return `<div class="dentry" style="align-items:center"><input type="checkbox" class="ntick" data-nid="${esc(n.id)}" ${n.done?'checked':''} style="width:20px;height:20px;flex:none"><span style="flex:1;${n.done?'text-decoration:line-through;color:var(--mute,#888)':''}">${esc(n.note)}</span>${n.due_date?`<span class="pill ${late?'red':td?'amber':''}">${late?'was due ':td?'today ':''}${uk(n.due_date)}</span>`:''}${n.done?`<button class="ndel" data-nid="${esc(n.id)}" title="Delete">✕</button>`:''}</div>`;
+}
+function noteAddBar(){ return `<form class="nadd" style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0"><input class="nt" placeholder="Add a quick note…" style="flex:1;min-width:160px"><input class="nd" type="date" title="Due date (optional)"><button class="primary" type="submit">Add</button></form>`; }
+function notesCard(){
+  const o=notesOpen();
+  return `<div class="card"><h2>Notes <span class="mute small">${o.length?o.length+' to do':'all clear'}</span></h2>${o.slice(0,12).map(noteRow).join('')||'<span class="mute">Nothing to remember.</span>'}${o.length>12?`<p class="small mute">…and ${o.length-12} more in the Notes tab.</p>`:''}${noteAddBar()}<p style="margin:8px 0 0"><button data-gotab="notes">Open notes</button></p></div>`;
+}
+function viewNotes(){
+  const o=notesOpen(), dn=D.notes.filter(n=>n.done).sort((a,b)=>String(b.done_at||'').localeCompare(String(a.done_at||''))).slice(0,25);
+  $('v-notes').innerHTML=`<div class="card"><h2>Notes <span class="mute small">quick reminders — they show on Overview and Today until you tick them off</span></h2>${noteAddBar()}</div>
+   <div class="card"><h2>To do (${o.length})</h2>${o.map(noteRow).join('')||'<span class="mute">Nothing to do. 🎉</span>'}</div>
+   <div class="card"><h2>Done recently</h2>${dn.map(noteRow).join('')||'<span class="mute">Nothing ticked off yet.</span>'}</div>`;
+}
+async function notesReload(){ try{ D.notes=await getAll('office_notes','select=*&order=created_at.asc'); }catch(e){} render(); }
+document.addEventListener('change',async e=>{
+  const c=e.target.closest&&e.target.closest('.ntick'); if(!c) return;
+  const n=D.notes.find(x=>x.id===c.dataset.nid); if(!n) return;
+  const done=c.checked; n.done=done; n.done_at=done?new Date().toISOString():null; render();
+  try{ const r=await api('/rest/v1/office_notes?id=eq.'+encodeURIComponent(n.id),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({done,done_at:n.done_at})}); if(!r.ok) throw new Error(); }
+  catch(err){ alert('Could not save that tick. Check your connection and try again.'); notesReload(); }
+});
+document.addEventListener('submit',async e=>{
+  const f=e.target.closest&&e.target.closest('form.nadd'); if(!f) return; e.preventDefault();
+  const t=f.querySelector('.nt').value.trim(); if(!t) return; const d=f.querySelector('.nd').value||null;
+  try{ const r=await api('/rest/v1/office_notes',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({note:t,due_date:d})}); if(!r.ok) throw new Error(await r.text()); await notesReload(); }
+  catch(err){ alert('Could not save the note: '+err.message); }
+});
+document.addEventListener('click',async e=>{
+  const b=e.target.closest&&e.target.closest('.ndel'); if(!b) return;
+  try{ const r=await api('/rest/v1/office_notes?id=eq.'+encodeURIComponent(b.dataset.nid),{method:'DELETE'}); if(!r.ok) throw new Error(); await notesReload(); }catch(err){ alert('Could not delete that note.'); }
+});
+
 // ---------- shell ----------
-const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['register','Crane checks'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
+const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['notes','Notes'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['register','Crane checks'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
   if(tab==='visits') tab='bookings';
   if((tab==='portals'||tab==='backups')&&!portalOK()) tab='overview';
   const due=dueList(), rep=repairsList();
-  const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, bookings:D.bookings.filter(b=>b.status==='booked').length+D.visits.filter(v=>v.status==='new').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length};
+  const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending').length, notes:notesLate().length, bookings:D.bookings.filter(b=>b.status==='booked').length+D.visits.filter(v=>v.status==='new').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length};
   $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='backups')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
   $('v-visits').classList.toggle('hide',!(tab==='bookings'&&portalOK()));
   if(tab==='bookings'&&portalOK()) viewVisits();
-  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,register:viewRegister,diary:viewDiary,backups:viewBackups})[tab]();
+  ({overview:viewOverview,today:viewToday,bookings:viewBookings,week:viewWeek,due:viewDue,repairs:viewRepairs,po:viewPo,folders:viewFolders,hols:viewHols,portals:viewPortals,chat:viewChat,fleet:viewFleet,customers:viewCustomers,register:viewRegister,diary:viewDiary,notes:viewNotes,backups:viewBackups})[tab]();
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
