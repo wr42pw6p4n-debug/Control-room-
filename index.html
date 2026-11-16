@@ -290,13 +290,13 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-15.1';
-let D = {notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
+const APP_BUILD='2026-11-16.1';
+let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
   $('msg').innerHTML='';
   const problems=[];
-  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks, diary, bkCust, notesRows] = await Promise.all([
+  const [jobs, reports, comps, pos, prof, mats, bks, people, phones, folders, hStaff, hBank, hAllow, hReqs, hApp, portals, custs, bhw, fleet, visits, pins, sph, trk, rateRows, regCfg, regChecks, diary, bkCust, notesRows, apprRows] = await Promise.all([
     getAll('js_docs','select=id,data,updated_at&kind=eq.job&deleted=eq.false').catch(e=>{problems.push('Job sheets: '+e.message); return null;}),
     getAll('reports','select=id,report_no,customer,crane_no,id_no,visit_type,report_date,engineer,next_due,site,data,updated_at&order=report_date.desc').catch(e=>{problems.push('Reports: '+e.message); return [];}),
     getAll('completions','select=key,done_date,note').catch(e=>{problems.push('Completions: '+e.message); return [];}),
@@ -325,10 +325,11 @@ async function load(){
     getAll('reg_checks','select=*').catch(()=>[]),
     getAll('diary_entries','select=*&order=entry_date.asc').catch(()=>[]),
     getAll('booking_customers','select=*').catch(()=>[]),
-    getAll('office_notes','select=*&order=created_at.asc').catch(()=>[])
+    getAll('office_notes','select=*&order=created_at.asc').catch(()=>[]),
+    getAll('repair_approvals','select=*&order=created_at.desc').catch(()=>[])
   ]);
   { const rr=(rateRows||[]).find(x=>x.key==='charge'); ratesSet=!!rr; ['nt','ot','dt','callout','mile','vat'].forEach(k=>{ RATES[k]=rr?Number(rr.data[k])||0:0; }); }
-  D.notes = notesRows||[]; D.bkCust = bkCust||[]; D.diary = diary||[]; D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
+  D.appr = apprRows||[]; D.notes = notesRows||[]; D.bkCust = bkCust||[]; D.diary = diary||[]; D.regCfg = regCfg||[]; D.regChecks = regChecks||[];
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
   D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
@@ -460,6 +461,7 @@ function viewOverview(){
     <button class="alert-card ${pending?'warning':'good'}" id="alertPO"><span class="alert-symbol">▤</span><span><strong>${pending}</strong><span>POs awaiting approval</span></span></button>
     <button class="alert-card ${hs.clashes.length?'danger':'good'}" id="alertClash"><span class="alert-symbol">🏖</span><span><strong>${hs.clashes.length}</strong><span>Holiday clashes (next 90 days)</span></span></button>
     <button class="alert-card ${hs.offToday.length?'warning':'good'}" id="alertOff"><span class="alert-symbol">🏖</span><span><strong>${hs.offToday.length}</strong><span>${hs.offToday.length?'Off today: '+hs.offToday.map(esc).join(', '):'Nobody off today'}</span></span></button>
+    <button class="alert-card ${apprNew().length?'warning':'good'}" id="alertAppr"><span class="alert-symbol">✉</span><span><strong>${apprNew().length}</strong><span>Customer repair answers${apprWait().length?' · '+apprWait().length+' waiting':''}</span></span></button>
     <button class="alert-card ${notesLate().length?'danger':notesOpen().length?'warning':'good'}" id="alertNotes"><span class="alert-symbol">📝</span><span><strong>${notesOpen().length}</strong><span>Notes to do${notesLate().length?' · '+notesLate().length+' overdue':''}</span></span></button>
     <button class="alert-card ${diaryOverdue().length?'danger':diaryOn(todayIso()).length?'warning':'good'}" id="alertDiary"><span class="alert-symbol">📓</span><span><strong>${diaryOn(todayIso()).length}</strong><span>Diary today${diaryOverdue().length?' · '+diaryOverdue().length+' overdue reminder'+(diaryOverdue().length===1?'':'s'):''}</span></span></button>
     ${regTotals().all.length?`<button class="alert-card ${regTotals().late?'danger':regTotals().outstanding?'warning':'good'}" id="alertReg"><span class="alert-symbol">☑</span><span><strong>${regTotals().outstanding}</strong><span>Crane checks outstanding${regTotals().late?' ('+regTotals().late+' missed)':''}</span></span></button>`:''}
@@ -473,6 +475,7 @@ function viewOverview(){
     <div class="tile"><b>${D.reports.length}</b><span>Reports loaded</span></div>
   </div>
   ${offCard(14)}
+  ${apprNewCard()}
   ${notesCard()}
   ${diaryCard()}
   ${regCard()}
@@ -493,7 +496,7 @@ function viewOverview(){
   const go = k => { tab=k; store.set('tab',tab); render(); window.scrollTo({top:0,behavior:'smooth'}); };
   [['heroDue','due'],['alertOverdue','due'],['alertDue7','due'],['quickDue','due'],
    ['heroRepairs','repairs'],['alertUrgent','repairs'],['quickRepairs','repairs'],
-   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertNotes','notes'],['alertReg','register'],['alertDiary','diary']]
+   ['heroWeek','week'],['quickWeek','week'],['heroPO','po'],['alertPO','po'],['quickPO','po'],['alertClash','hols'],['alertHol','hols'],['alertOff','hols'],['alertNotes','notes'],['alertAppr','repairs'],['alertReg','register'],['alertDiary','diary']]
    .forEach(([id,k])=>{const el=$(id); if(el) el.onclick=()=>{if(k==='due'){dueWin=id==='alertOverdue'?365:id==='alertDue7'?7:dueWin;} go(k);};});
 }
 async function saveMat(i){
@@ -533,6 +536,7 @@ function viewToday(){
   const progBody=d.prog.length?`<table><tr><th>Job</th><th>Customer / site</th><th>Type</th><th>Engineers</th></tr>${d.prog.map(j=>{const x=j.data;return `<tr><td>${esc(x.job||j.id)}</td><td>${esc(x.customerName||x.customer||'')}<div class="mute small">${esc(x.site||'')}</div></td><td>${esc(x.type||'')}</td><td>${esc((x.engineers||[]).map(d.canon).join(', '))}</td></tr>`;}).join('')}</table>`:none('No jobs in progress.');
   $('v-today').innerHTML=`<div class="bar"><b>${esc(dateLabel)}</b><span class="mute small">${over} overdue · ${d.due.length-over} due in 14 days · ${d.urgent.length} urgent repairs · ${d.pend.length} POs waiting · ${holSummary().offToday.length} off today</span><span class="sp"></span><button class="primary" id="tCsv">Download today's list</button><button id="tPrint">Print</button></div>`+
     offCard(14)+
+    apprNewCard()+
     notesCard()+
     diaryCard()+
     regCard()+
@@ -821,9 +825,10 @@ function viewDue(){
 
 function viewRepairs(){
   const {open,done}=repairsList();
-  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td>${x.comp?`<span class="small mute">${esc(x.comp.note||'')}</span>`:`<button data-mr="${esc(x.key)}" title="Record this as repaired">Mark repaired</button>`}</td></tr>`;
+  const row=x=>`<tr><td>${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">REQ ATTN</span>'}</td><td>${esc(x.r.customer)}<div class="mute small">${esc(x.r.site||'')}</div></td><td>${esc(x.r.crane_no||'')}</td><td>${esc(x.it.group)} – ${esc(x.it.label)}${x.it.note?`<div class="small mute">${esc(x.it.note)}</div>`:''}${apprTag(x)}</td><td>${esc(x.eng)}</td><td>${uk(x.r.report_date)}</td><td>${x.comp?`<span class="small mute">${esc(x.comp.note||'')}</span>`:`<button data-mr="${esc(x.key)}" title="Record this as repaired">Mark repaired</button>`}</td></tr>`;
   $('v-repairs').innerHTML=`<div class="bar"><span class="mute small">Repairs to book in with customers</span><span class="sp"></span><button id="rCsv" ${open.length?'':'disabled'}>Download CSV</button><button id="rPrint">Print</button></div><div class="card"><h2>Repairs required <span class="mute small">${open.length} to book in</span></h2><div class="wrap">${open.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No outstanding repairs.</span>'}</div></div>
   <div class="card"><h2>Repaired in last 30 days <span class="mute small">${done.length}</span></h2><div class="wrap">${done.length?`<table><tr><th></th><th>Customer</th><th>Crane</th><th>Item</th><th>Engineer</th><th>Reported</th><th>Note</th></tr>${done.map(row).join('')}</table>`:'<span class="mute">None recorded.</span>'}</div></div>`;
+  $('v-repairs').insertAdjacentHTML('afterbegin',apprPanel()); bindAppr($('v-repairs'));
   $('rCsv').onclick=()=>csvDownload('repairs_'+todayIso()+'.csv',['Priority','Customer','Site','Crane','Group','Item','Note','Engineer','Reported'],open.map(x=>[x.it.status==='URGENT'?'Urgent':'Req attn',x.r.customer,x.r.site,x.r.crane_no,x.it.group,x.it.label,x.it.note,x.eng,uk(x.r.report_date)]));
   $('rPrint').onclick=()=>window.print();
   $('v-repairs').querySelectorAll('button[data-mr]').forEach(b=>b.onclick=async()=>{
@@ -1726,6 +1731,77 @@ document.addEventListener('click',async e=>{
   const b=e.target.closest&&e.target.closest('.ndel'); if(!b) return;
   try{ const r=await api('/rest/v1/office_notes?id=eq.'+encodeURIComponent(b.dataset.nid),{method:'DELETE'}); if(!r.ok) throw new Error(); await notesReload(); }catch(err){ alert('Could not delete that note.'); }
 });
+
+// ---------- customer repair approvals: email the customer a link, their Accept / Decline comes back here ----------
+const APPR_URL='https://wr42pw6p4n-debug.github.io/Report-sheet/approve.html?t=';
+const apprLink = a => APPR_URL+a.token;
+const apprNew = () => D.appr.filter(a=>a.status==='answered'&&!a.actioned);
+const apprWait = () => D.appr.filter(a=>a.status!=='answered');
+function apprTally(a){ const it=a.items||[]; return {acc:it.filter(i=>i.decision==='accept').length, dec:it.filter(i=>i.decision==='decline').length, n:it.length}; }
+function apprFor(key){ // newest request that mentions this repair
+  const hits=D.appr.filter(a=>(a.items||[]).some(i=>i.key===key)).sort((p,q)=>String(q.created_at).localeCompare(String(p.created_at)));
+  if(!hits.length) return null; const a=hits[0], it=a.items.find(i=>i.key===key); return {a,it};
+}
+function apprTag(x){
+  const f=apprFor(x.key); if(!f) return '';
+  if(f.a.status!=='answered') return `<div><span class="pill amber">Awaiting customer · sent ${uk(String(f.a.created_at).slice(0,10))}</span></div>`;
+  return f.it.decision==='accept'?`<div><span class="pill green">Customer accepted${f.a.po_number?' · PO '+esc(f.a.po_number):''}</span></div>`:`<div><span class="pill red">Customer declined</span></div>`;
+}
+function apprEmail(a,email){
+  const lines=(a.items||[]).map(i=>`• ${i.crane?i.crane+' – ':''}${i.group||''}${i.group&&i.label?' – ':''}${i.label||''}${i.status==='URGENT'?' (URGENT)':''}`).join('\n');
+  const subject=`Key Engineering: repairs found at ${a.site||a.customer} – please approve`;
+  const body=`Hello,\n\nFollowing our recent inspection${a.site?' at '+a.site:''}, the repairs below were found and need attention:\n\n${lines}\n\nPlease let us know which you would like us to go ahead with. It only takes a minute: tap the link, choose Accept or Decline for each repair, and press Send.\n\n${apprLink(a)}\n\nMany thanks,\nKey Engineering Chesterfield`;
+  return {subject,body,email};
+}
+const emailForCust = name => { const c=D.custs.find(x=>String((x.data&&x.data.customer)||x.name_key).trim().toLowerCase()===String(name).trim().toLowerCase()); return c&&c.data&&c.data.email?String(c.data.email).trim():''; };
+function apprPanel(){
+  const {open}=repairsList(), by={}; open.forEach(x=>{ (by[x.r.customer||'Unknown']=by[x.r.customer||'Unknown']||[]).push(x); });
+  const custs=Object.keys(by).sort();
+  const nw=apprNew(), wt=apprWait(), dn=D.appr.filter(a=>a.status==='answered'&&a.actioned).slice(0,5);
+  const answerRow=a=>{ const t=apprTally(a); return `<div class="card" style="margin:8px 0"><b>${esc(a.customer)}</b> <span class="mute small">${a.site?esc(a.site)+' · ':''}answered ${a.answered_at?uk(String(a.answered_at).slice(0,10)):''} by ${esc(a.answered_by||'?')}${a.po_number?' · <b>PO '+esc(a.po_number)+'</b>':''}</span>
+    <div style="margin:6px 0">${(a.items||[]).map(i=>`<div class="small">${i.decision==='accept'?'<span class="pill green">Accepted</span>':'<span class="pill red">Declined</span>'} ${esc(i.crane?i.crane+' – ':'')}${esc(i.group||'')} ${i.group&&i.label?'– ':''}${esc(i.label||'')}</div>`).join('')}</div>
+    ${a.note?`<div class="small"><b>Customer note:</b> ${esc(a.note)}</div>`:''}
+    ${a.actioned?'<span class="mute small">Dealt with</span>':`<button class="primary" data-apdone="${esc(a.id)}">Mark dealt with</button> <button data-apcopy="${esc(a.id)}">Copy summary</button>`} <span class="mute small">${t.acc} accepted · ${t.dec} declined</span></div>`; };
+  return `<div class="card"><h2>Customer approvals <span class="mute small">${nw.length} new answer${nw.length===1?'':'s'} · ${wt.length} waiting for a reply</span></h2>
+   ${nw.map(answerRow).join('')}
+   ${wt.length?`<p class="small" style="margin:10px 0 4px"><b>Waiting for a reply</b></p>${wt.map(a=>`<div class="small" style="margin:4px 0"><b>${esc(a.customer)}</b> · ${(a.items||[]).length} repair${(a.items||[]).length===1?'':'s'} · sent ${uk(String(a.created_at).slice(0,10))} <button data-apresend="${esc(a.id)}">Email again</button> <button data-apdel="${esc(a.id)}">Cancel</button></div>`).join('')}`:''}
+   <p class="small" style="margin:12px 0 4px"><b>Ask a customer to approve repairs</b> <span class="mute">(they get an email with one link, no login)</span></p>
+   ${custs.length?custs.map(c=>`<div class="small" style="margin:4px 0"><b>${esc(c)}</b> · ${by[c].length} repair${by[c].length===1?'':'s'} to book <button class="primary" data-apask="${esc(c)}">Email for approval</button></div>`).join(''):'<span class="mute">No open repairs.</span>'}
+   ${dn.length?`<details style="margin-top:10px"><summary class="small">Dealt with recently (${dn.length})</summary>${dn.map(answerRow).join('')}</details>`:''}</div>`;
+}
+function apprAsk(customer){
+  const {open}=repairsList(), list=open.filter(x=>(x.r.customer||'Unknown')===customer); if(!list.length) return;
+  const m=document.createElement('div'); m.className='regmodal';
+  const site=(list[0].r.site||'');
+  m.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto"><h2>Email ${esc(customer)} for approval</h2><p class="small mute">Tick the repairs to include. The customer gets one link where they accept or decline each one.</p>
+   ${list.map((x,i)=>`<label class="small" style="display:block;margin:6px 0"><input type="checkbox" class="apk" data-i="${i}" checked> ${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">ATTN</span>'} ${esc(x.r.crane_no||'')} – ${esc(x.it.group||'')} ${x.it.group&&x.it.label?'– ':''}${esc(x.it.label||'')}</label>`).join('')}
+   <label class="small" style="display:block;margin-top:10px">Send to (email)<input id="apE" type="email" value="${esc(emailForCust(customer))}" placeholder="customer@example.com" style="width:100%"></label>
+   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="apGo">Create email</button><button id="apCopy">Copy message instead</button><button id="apX">Cancel</button></p><div class="small mute" id="apMsg"></div></div>`;
+  document.body.appendChild(m); const $$=i=>m.querySelector('#'+i), close=()=>m.remove(); m.onclick=ev=>{ if(ev.target===m) close(); }; $$('apX').onclick=close;
+  const make=async()=>{
+    const sel=[...m.querySelectorAll('.apk')].filter(c=>c.checked).map(c=>list[+c.dataset.i]); if(!sel.length){ $$('apMsg').textContent='Tick at least one repair.'; return null; }
+    const bytes=new Uint8Array(16); crypto.getRandomValues(bytes); const token=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+    const items=sel.map(x=>({key:x.key,crane:x.r.crane_no||'',id_no:x.r.id_no||'',group:x.it.group||'',label:x.it.label||'',note:x.it.note||'',status:x.it.status,decision:null}));
+    const row={token,customer,site:site||null,contact_email:$$('apE').value.trim()||null,items};
+    $$('apMsg').textContent='Saving…';
+    const r=await api('/rest/v1/repair_approvals',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(row)}); if(!r.ok) throw new Error(await r.text());
+    D.appr=await getAll('repair_approvals','select=*&order=created_at.desc'); return row;
+  };
+  $$('apGo').onclick=async()=>{ try{ const a=await make(); if(!a) return; const d=apprEmail(a); render(); close(); location.href='mailto:'+encodeURIComponent(a.contact_email||'').replace('%40','@')+'?subject='+encodeURIComponent(d.subject)+'&body='+encodeURIComponent(d.body); }catch(e){ $$('apMsg').textContent='Could not save: '+e.message; } };
+  $$('apCopy').onclick=async()=>{ try{ const a=await make(); if(!a) return; const d=apprEmail(a); await copyText(d.subject+'\n\n'+d.body); render(); $$('apMsg').textContent='Copied. Paste it into an email.'; }catch(e){ $$('apMsg').textContent='Could not save: '+e.message; } };
+}
+function bindAppr(root){
+  root.querySelectorAll('[data-apask]').forEach(b=>b.onclick=()=>apprAsk(b.dataset.apask));
+  const get=id=>D.appr.find(a=>a.id===id);
+  root.querySelectorAll('[data-apdone]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ const r=await api('/rest/v1/repair_approvals?id=eq.'+encodeURIComponent(b.dataset.apdone),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({actioned:true,actioned_at:new Date().toISOString()})}); if(!r.ok) throw new Error(); D.appr=await getAll('repair_approvals','select=*&order=created_at.desc'); render(); }catch(e){ b.disabled=false; alert('Could not save that.'); } });
+  root.querySelectorAll('[data-apcopy]').forEach(b=>b.onclick=async()=>{ const a=get(b.dataset.apcopy); if(!a) return; const t=apprTally(a); await copyText(`${a.customer}${a.site?' – '+a.site:''}\nAnswered by ${a.answered_by||'?'}${a.po_number?' · PO '+a.po_number:''}\n`+(a.items||[]).map(i=>`${i.decision==='accept'?'ACCEPTED':'DECLINED'}: ${i.crane?i.crane+' – ':''}${i.group||''} – ${i.label||''}`).join('\n')+(a.note?'\nNote: '+a.note:'')); b.textContent='Copied'; });
+  root.querySelectorAll('[data-apresend]').forEach(b=>b.onclick=()=>{ const a=get(b.dataset.apresend); if(!a) return; const d=apprEmail(a); location.href='mailto:'+(a.contact_email||'')+'?subject='+encodeURIComponent(d.subject)+'&body='+encodeURIComponent(d.body); });
+  root.querySelectorAll('[data-apdel]').forEach(b=>b.onclick=async()=>{ if(!confirm('Cancel this request? The customer link will stop working.')) return; try{ const r=await api('/rest/v1/repair_approvals?id=eq.'+encodeURIComponent(b.dataset.apdel),{method:'DELETE'}); if(!r.ok) throw new Error(); D.appr=await getAll('repair_approvals','select=*&order=created_at.desc'); render(); }catch(e){ alert('Could not cancel it.'); } });
+}
+function apprNewCard(){
+  const nw=apprNew(); if(!nw.length) return '';
+  return `<div class="card"><h2>Customer repair answers <span class="mute small">${nw.length} new</span></h2>${nw.map(a=>{ const t=apprTally(a); return `<div class="small" style="margin:5px 0"><b>${esc(a.customer)}</b> · ${t.acc} accepted${t.dec?' · '+t.dec+' declined':''}${a.po_number?' · PO '+esc(a.po_number):''} <span class="mute">by ${esc(a.answered_by||'?')}</span></div>`; }).join('')}<p style="margin:8px 0 0"><button class="primary" data-gotab="repairs">Open Repairs</button></p></div>`;
+}
 
 // ---------- shell ----------
 const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['notes','Notes'],['bookings','Bookings'],['week','Week'],['folders','Folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs'],['customers','Customers'],['register','Crane checks'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
