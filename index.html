@@ -92,6 +92,16 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 #login button{width:100%;margin-top:10px;padding:12px}
 details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 .hide{display:none!important}
+#wall{position:fixed;inset:0;z-index:100000;background:#0b1522;color:#fff;font-family:Arial,Helvetica,sans-serif;padding:2.2vw 3vw;overflow:auto}
+#wall .whead{display:flex;align-items:center;justify-content:space-between;gap:20px}#wall .wclock{font-size:7vw;font-weight:800;line-height:1}#wall .wdate{font-size:2.4vw;color:#9fb3c8}
+#wall .wbrand{font-size:2.2vw;font-weight:800;letter-spacing:.12em;color:#f2b92c;text-align:right}#wall .wbrand small{font-size:1.4vw;color:#9fb3c8;letter-spacing:.2em}
+#wall #wallX{background:#1b2a3d;color:#fff;border:1px solid #3a4b63;padding:8px 16px;font-size:16px;border-radius:8px;cursor:pointer;align-self:flex-start}
+#wall .wtiles{display:grid;grid-template-columns:repeat(6,1fr);gap:1.2vw;margin:2vw 0}#wall .wt{border-radius:14px;padding:1.2vw;text-align:center;background:#16263a}
+#wall .wt b{display:block;font-size:5vw;line-height:1}#wall .wt span{font-size:1.5vw;color:#cfdbe8}
+#wall .wt.bad{background:#a61b25}#wall .wt.warn{background:#9a6700}#wall .wt.ok{background:#14532d}
+#wall .wcols{display:grid;grid-template-columns:1fr 1fr;gap:3vw}#wall h3{font-size:1.8vw;letter-spacing:.1em;text-transform:uppercase;color:#f2b92c;margin:1.4vw 0 .6vw;border-bottom:2px solid #24364d;padding-bottom:.4vw}
+#wall .wr{font-size:2vw;padding:.45vw 0;border-bottom:1px solid #1b2a3d}#wall .mute{color:#7f93a8}
+@media(max-width:800px){#wall .wtiles{grid-template-columns:repeat(2,1fr)}#wall .wcols{grid-template-columns:1fr}#wall .wclock{font-size:16vw}#wall .wdate,#wall .wr{font-size:4.5vw}#wall .wt b{font-size:12vw}#wall .wt span{font-size:3.5vw}#wall h3{font-size:4vw}#wall .wbrand{display:none}}
 #msg:empty{display:none}
 
 /* Control-room layer */
@@ -195,6 +205,8 @@ tr.hsoon td{background:var(--ambbg)}
     <h1>Key Engineering Office</h1>
     <span class="who" id="who"></span>
     <span class="who" id="synced"></span>
+    <button id="installBtn" class="hide">Install app</button>
+    <button id="wallBtn">Wall screen</button>
     <button id="refresh">Refresh</button>
     <button id="out">Sign out</button>
   </header>
@@ -212,6 +224,7 @@ tr.hsoon td{background:var(--ambbg)}
       </div>
     </div>
     <div id="searchResults" class="search-results hide"></div>
+    <div id="verBar" class="hide" style="background:#fff3cd;border:2px solid #f2a900;border-radius:10px;padding:10px 14px;margin:8px 0;font-weight:600"></div>
     <div id="msg"></div>
     <section id="v-overview"></section>
     <section id="v-today" class="hide"></section>
@@ -294,7 +307,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-17.1';
+const APP_BUILD='2026-11-18.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -577,13 +590,13 @@ async function notifyEngineer(id){
   if(!res.ok) throw new Error(j.error||('Notification failed ('+res.status+')'));
   return j;
 }
-function repairEmail(b){
+function repairEmail(b,link){
   const d=b.details||{}, items=d.items||[];
   const list=items.length?items.map(i=>'- '+(i.group?i.group+' / ':'')+i.label+(i.status==='URGENT'?' (urgent)':'')+(i.note?': '+i.note:'')).join('\n'):(b.description||'');
   const crane=[d.crane?('crane '+d.crane):'your crane', d.idno?('(ID '+d.idno+')'):''].filter(Boolean).join(' ');
   const when=d.reportDate?(' on '+uk(d.reportDate)):'';
   const subject='Repairs required - '+(d.crane?('crane '+d.crane+' - '):'')+(b.site||b.customer);
-  const body='Dear '+(b.contact||'Sir / Madam')+',\n\nFollowing our recent '+String(d.visitType||'visit').toLowerCase()+when+(b.site?(' at '+b.site):'')+', our engineer found that the following repairs are required on '+crane+':\n\n'+list+'\n\nWe would like to book these in'+(b.wanted_date?(' - we are looking at '+uk(b.wanted_date)):' as soon as possible')+'. Please let us know a suitable date and any site access requirements and we will confirm an engineer.\n\nYou can reply to this email or call us on 01246 413524.\n\nKind regards,\nKey Engineering (Chesterfield) Ltd\nTel: 01246 413524';
+  const body='Dear '+(b.contact||'Sir / Madam')+',\n\nFollowing our recent '+String(d.visitType||'visit').toLowerCase()+when+(b.site?(' at '+b.site):'')+', our engineer found that the following repairs are required on '+crane+':\n\n'+list+'\n\nWe would like to book these in'+(b.wanted_date?(' - we are looking at '+uk(b.wanted_date)):' as soon as possible')+'. '+(link?'To save you time you can accept or decline each repair online. It takes a minute, no login needed:\n\n'+link+'\n\nOr, if you prefer, simply reply with a suitable date and any site access requirements and we will confirm an engineer.':'Please let us know a suitable date and any site access requirements and we will confirm an engineer.')+'\n\nYou can reply to this email or call us on 01246 413524.\n\nKind regards,\nKey Engineering (Chesterfield) Ltd\nTel: 01246 413524';
   return {subject, body};
 }
 function bookingText(b){
@@ -718,7 +731,12 @@ function viewBookings(){
       if(act==='email'){
         let to=b.contact_email||'';
         if(!to){ to=(window.prompt('Customer email address for this draft (it will be remembered):')||'').trim(); if(to){ await patchBooking(b.id,{contact_email:to}); b.contact_email=to; } }
-        const m=repairEmail(b); btn.disabled=false;
+        let link=''; try{
+          const op=repairsList().open, cr=String((b.details&&b.details.crane)||'').trim().toLowerCase(), cu=String(b.customer||'').trim().toLowerCase();
+          const its=((b.details&&b.details.items)||[]).map(i=>{ const h=op.find(x=>String(x.r.customer||'').trim().toLowerCase()===cu&&String(x.r.crane_no||'').trim().toLowerCase()===cr&&String(x.it.label||'')===String(i.label||'')&&String(x.it.group||'')===String(i.group||'')); return {key:h?h.key:'',crane:(b.details&&b.details.crane)||'',id_no:(b.details&&b.details.idno)||'',group:i.group||'',label:i.label||'',note:i.note||'',status:i.status||'ATTN',decision:null}; });
+          if(its.length){ const row=await apprCreateRow(b.customer,b.site,to,its,'repairs'); link=apprLink(row); }
+        }catch(e){ link=''; }
+        const m=repairEmail(b,link); btn.disabled=false; if(link) render();
         window.location.href='mailto:'+encodeURIComponent(to).replace(/%40/g,'@')+'?subject='+encodeURIComponent(m.subject)+'&body='+encodeURIComponent(m.body); return; }
       if(act==='text'){ if(D.staffPhones.some(x=>x.name===b.engineer_name)&&D.staffPhones.find(x=>x.name===b.engineer_name).phone){ offerSend(b); btn.disabled=false; return; } await textEngineer(b); btn.disabled=false; render(); return; }
       if(act==='notify'&&D.staffPhones.some(x=>x.name===b.engineer_name)){ offerSend(b); btn.disabled=false; return; }
@@ -847,6 +865,7 @@ function viewDue(){
     <select id="dKind"><option value="">All types</option>${[...Object.keys(KINDS),...trackKinds].map(k=>`<option ${k===dueKind?'selected':''}>${esc(k)}</option>`).join('')}</select>
     <select id="dSrc"><option value="">Reports + tracker</option><option value="reports" ${dueSrc==='reports'?'selected':''}>Reports only</option><option value="tracker" ${dueSrc==='tracker'?'selected':''}>Tracker only</option></select>
     <input id="dQ" type="search" placeholder="Search customer…" value="${esc(dueQ)}" style="min-width:170px">
+    ${portalOK()?'<button id="dChase" class="primary">✉ Chase customers</button>':''}
     <select id="dWin">${[7,30,60,90,365].map(n=>`<option value="${n}" ${n===dueWin?'selected':''}>Next ${n} days</option>`).join('')}</select>
     <span class="mute small">${list.length} shown</span><span class="sp"></span><button id="dCsv" ${list.length?'':'disabled'}>Download CSV</button></div>
     <div class="card wrap">${list.length?`<table><tr><th>Due</th><th></th><th>Type</th><th>Customer</th><th>Crane</th><th>Engineer</th><th>Last visit</th><th></th></tr>
@@ -867,6 +886,7 @@ function viewDue(){
   $('dEng').onchange=e=>{dueEng=e.target.value;viewDue();};
   $('dKind').onchange=e=>{dueKind=e.target.value;viewDue();};
   dueWire(list);
+  if($('dChase')) $('dChase').onclick=chaseModal;
   $('dSrc').onchange=e=>{dueSrc=e.target.value;viewDue();};
   $('dQ').oninput=e=>{dueQ=e.target.value; const pos=e.target.selectionStart; viewDue(); const q=$('dQ'); q.focus(); q.setSelectionRange(pos,pos);};
   const tsave=async(path,opts)=>{ try{ await api(path,opts); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } };
@@ -1471,6 +1491,10 @@ function runGlobalSearch(){
     const hay=[b.customer,b.site,b.contact,b.phone,b.description,b.job_type,b.engineer_name,b.status].join(' ');
     if(has(hay)) hits.push({type:'Booking',main:(b.customer||'Booking')+' · '+(b.site||''),sub:[b.status,b.job_type,b.engineer_name].filter(Boolean).join(' · '),tab:'bookings',key:b.id});
   });
+  D.custs.forEach(c=>{ const d=c.data||{}; const hay=[d.customer,d.email,d.phone,d.address,d.contact].join(' '); if(d.customer&&has(hay)) hits.push({type:'Customer',main:d.customer,sub:[d.email,d.phone].filter(Boolean).join(' · '),tab:'customers',cust:nk(d.customer)}); });
+  D.notes.forEach(n=>{ if(!n.done&&has(n.note)) hits.push({type:'Note',main:n.note,sub:n.due_date?'Due '+uk(n.due_date):'',tab:'notes'}); });
+  D.diary.forEach(e=>{ if(has([e.title,e.notes,e.who,e.kind].join(' '))) hits.push({type:'Diary',main:e.title,sub:[uk(e.entry_date),e.who].filter(Boolean).join(' · '),tab:'diary'}); });
+  (D.quotes||[]).forEach(q=>{ if(has([q.customer,q.site,q.description,q.engineer_name,q.work_type].join(' '))) hits.push({type:'Quote request',main:(q.customer||'Quote')+' · '+(q.site||''),sub:[q.status,q.work_type,q.description].filter(Boolean).join(' · '),tab:'po'}); });
   const MAXHITS=80; const limited=hits.slice(0,MAXHITS);
   box.innerHTML=`<div class="result-head">${hits.length} matching record${hits.length===1?'':'s'}${hits.length>MAXHITS?' · showing first '+MAXHITS+' — type more of the name to narrow it':''}</div>`+
     (limited.length?limited.map((h,i)=>`<div class="result" role="button" tabindex="0" data-hit="${i}"><div class="result-type">${esc(h.type)}</div><div><div class="result-main">${esc(h.main)}</div><div class="result-sub">${esc(h.sub)}</div></div><div class="result-go">${h.report?`<button type="button" data-pdf="${i}" style="font-weight:800">Open PDF</button>`:'Open section →'}</div></div>`).join(''):`<div class="empty-state">No matching records in the data currently loaded. Try a customer name, crane number, job number or PO reference.</div>`);
@@ -1484,7 +1508,7 @@ function runGlobalSearch(){
     b.disabled=false; b.textContent=old;
   });
   box.querySelectorAll('[data-hit]').forEach(el=>{
-    const open=()=>{const h=limited[+el.dataset.hit];if(h.tab==='week'&&h.week)weekStart=monday(h.week);tab=h.tab;store.set('tab',tab);render();box.classList.add('hide');input.blur();};
+    const open=()=>{const h=limited[+el.dataset.hit];if(h.tab==='week'&&h.week)weekStart=monday(h.week);if(h.cust)custSel=h.cust;tab=h.tab;store.set('tab',tab);render();box.classList.add('hide');input.blur();};
     el.onclick=open;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};
   });
 }
@@ -1992,7 +2016,7 @@ function apprPanel(){
   const custs=Object.keys(by).sort();
   const nw=apprNew(), wt=apprWait(), dn=D.appr.filter(a=>a.status==='answered'&&a.actioned).slice(0,5);
   const answerRow=a=>{ const t=apprTally(a); return `<div class="card" style="margin:8px 0"><b>${esc(a.customer)}</b> <span class="mute small">${a.site?esc(a.site)+' · ':''}answered ${a.answered_at?uk(String(a.answered_at).slice(0,10)):''} by ${esc(a.answered_by||'?')}${a.po_number?' · <b>PO '+esc(a.po_number)+'</b>':''}</span>
-    <div style="margin:6px 0">${(a.items||[]).map(i=>`<div class="small">${i.decision==='accept'?'<span class="pill green">Accepted</span>':'<span class="pill red">Declined</span>'} ${esc(i.crane?i.crane+' – ':'')}${esc(i.group||'')} ${i.group&&i.label?'– ':''}${esc(i.label||'')}</div>`).join('')}</div>
+    <div style="margin:6px 0">${(a.items||[]).map(i=>`<div class="small">${i.decision==='accept'?`<span class="pill green">${a.kind==='service'?'Book us in':'Accepted'}</span>`:`<span class="pill red">${a.kind==='service'?'Not now':'Declined'}</span>`} ${esc(i.crane?i.crane+' – ':'')}${esc(i.group||'')} ${i.group&&i.label?'– ':''}${esc(i.label||'')}</div>`).join('')}</div>
     ${a.note?`<div class="small"><b>Customer note:</b> ${esc(a.note)}</div>`:''}
     ${a.actioned?'<span class="mute small">Dealt with</span>':`<button class="primary" data-apdone="${esc(a.id)}">Mark dealt with</button> <button data-apcopy="${esc(a.id)}">Copy summary</button>`} <span class="mute small">${t.acc} accepted · ${t.dec} declined</span></div>`; };
   return `<div class="card"><h2>Customer approvals <span class="mute small">${nw.length} new answer${nw.length===1?'':'s'} · ${wt.length} waiting for a reply</span></h2>
@@ -2036,6 +2060,107 @@ function apprNewCard(){
   return `<div class="card"><h2>Customer repair answers <span class="mute small">${nw.length} new</span></h2>${nw.map(a=>{ const t=apprTally(a); return `<div class="small" style="margin:5px 0"><b>${esc(a.customer)}</b> · ${t.acc} accepted${t.dec?' · '+t.dec+' declined':''}${a.po_number?' · PO '+esc(a.po_number):''} <span class="mute">by ${esc(a.answered_by||'?')}</span></div>`; }).join('')}<p style="margin:8px 0 0"><button class="primary" data-gotab="repairs">Open Repairs</button></p></div>`;
 }
 
+// ---------- shared: create a customer approval / chaser link ----------
+async function apprCreateRow(customer,site,email,items,kind){
+  const bytes=new Uint8Array(16); crypto.getRandomValues(bytes); const token=[...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+  const row={token,customer,site:site||null,contact_email:email||null,items,kind:kind||'repairs'};
+  const r=await api('/rest/v1/repair_approvals',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify(row)}); if(!r.ok) throw new Error(await r.text());
+  D.appr=await getAll('repair_approvals','select=*&order=created_at.desc'); return row;
+}
+
+// ---------- overdue chasers: one email per customer, with a "book us in" link ----------
+function chaseModal(){
+  const items=dueList(false).filter(d=>d.days<=14&&!d.tracker&&d.r&&d.r.customer);
+  const by={}; items.forEach(d=>{ (by[d.r.customer]=by[d.r.customer]||[]).push(d); });
+  const names=Object.keys(by).sort((a,b)=>Math.min(...by[a].map(x=>x.days))-Math.min(...by[b].map(x=>x.days)));
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto;max-width:720px"><h2>Chase overdue &amp; due-soon customers</h2><p class="small mute">One email per customer, listing what is due, with a link where they press "Yes, book us in" or "Not now". Their answer lands in Repairs → Customer approvals and on the Overview.</p>
+  ${names.length?names.map((n,ci)=>`<div class="card" style="margin:8px 0"><b>${esc(n)}</b>
+   ${by[n].map((d,i)=>`<label class="small" style="display:block;margin:4px 0"><input type="checkbox" class="chk" data-c="${ci}" data-i="${i}" checked> ${pill(d.days)} ${esc(d.kind)} · ${esc(d.r.crane_no||'')} · due ${uk(d.iso)}</label>`).join('')}
+   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><input class="che" data-c="${ci}" type="email" placeholder="customer email" value="${esc(emailForCust(n))}" style="flex:1;min-width:200px"><button class="primary chg" data-c="${ci}">Create email</button></div><div class="small mute chm" data-c="${ci}"></div></div>`).join(''):'<span class="mute">Nothing overdue or due in the next 14 days.</span>'}
+  <p style="margin:10px 0 0"><button id="chX">Close</button></p></div>`;
+  document.body.appendChild(m); m.onclick=e=>{ if(e.target===m) m.remove(); }; m.querySelector('#chX').onclick=()=>m.remove();
+  m.querySelectorAll('.chg').forEach(b=>b.onclick=async()=>{
+    const ci=+b.dataset.c, n=names[ci], msg=m.querySelector(`.chm[data-c="${ci}"]`);
+    const sel=[...m.querySelectorAll(`.chk[data-c="${ci}"]`)].filter(c=>c.checked).map(c=>by[n][+c.dataset.i]); if(!sel.length){ msg.textContent='Tick at least one.'; return; }
+    const email=m.querySelector(`.che[data-c="${ci}"]`).value.trim(); b.disabled=true; msg.textContent='Saving…';
+    try{
+      const its=sel.map(d=>({key:'',crane:d.r.crane_no||'',group:d.kind,label:(d.days<0?'Overdue since ':'Due ')+uk(d.iso),note:d.r.site||'',status:'',decision:null}));
+      const row=await apprCreateRow(n,sel[0].r.site||'',email,its,'service');
+      const lines=sel.map(d=>`• ${d.kind}${d.r.crane_no?' – crane '+d.r.crane_no:''}${d.r.site?' ('+d.r.site+')':''} – ${d.days<0?'overdue since ':'due '}${uk(d.iso)}`).join('\n');
+      const subject=`Key Engineering: ${sel.length===1?sel[0].kind.toLowerCase()+' is':'inspections / services are'} due`;
+      const body=`Hello,\n\nOur records show the following ${sel.length===1?'is':'are'} due or overdue:\n\n${lines}\n\nWould you like us to book ${sel.length===1?'it':'them'} in? Tap the link below and press "Yes, book us in" (or "Not now"). It only takes a moment, and we will then contact you to agree a date.\n\n${apprLink(row)}\n\nMany thanks,\nKey Engineering Chesterfield\nTel: 01246 413524`;
+      render(); location.href='mailto:'+encodeURIComponent(email).replace(/%40/g,'@')+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+      msg.textContent='Email opened. (If nothing opened, check your email app is set up.)'; b.textContent='Created ✓';
+    }catch(e){ msg.textContent='Could not save: '+e.message; b.disabled=false; }
+  });
+}
+
+// ---------- old-copy warning ----------
+const bnum=b=>{ const m=/^(\d{4}-\d{2}-\d{2})\.(\d+)$/.exec(b||''); return m?m[1]+'.'+String(m[2]).padStart(4,'0'):''; };
+async function versionCheck(){
+  const bar=$('verBar'); if(!bar) return; const show=h=>{ bar.innerHTML=h; bar.classList.toggle('hide',!h); };
+  try{
+    const r=await fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'}); const txt=await r.text(); const m=/APP_BUILD\s*=\s*'([^']+)'/.exec(txt);
+    if(m&&bnum(m[1])>bnum(APP_BUILD)){ show(`A newer version of the Control Room is ready (build ${esc(m[1])}). <button id="verRef">Reload now</button>`); $('verRef').onclick=()=>location.reload(); return; }
+    const rows=await (await api('/rest/v1/app_meta?select=v&k=eq.cr_build')).json(); const cur=rows[0]&&rows[0].v;
+    if(cur&&bnum(cur)>bnum(APP_BUILD)){ show(`⚠ This copy is build ${esc(APP_BUILD)}, but build ${esc(cur)} has been used before. An older file may have been uploaded by mistake, so some tabs could be missing. Please tell Claude.`); return; }
+    if(!cur||bnum(APP_BUILD)>bnum(cur)) await api('/rest/v1/app_meta?on_conflict=k',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({k:'cr_build',v:APP_BUILD,updated_at:new Date().toISOString()})});
+    show('');
+  }catch(e){}
+}
+
+// ---------- wall screen: big, self-refreshing "what's happening" display ----------
+let wallOn=false, wallTick=null, wallLoad=null;
+function wallHtml(){
+  const t=todayIso(), due=dueList(), rep=repairsList().open, dueNow=due.filter(d=>d.days<0), soon=due.filter(d=>d.days>=0&&d.days<=7);
+  const urgent=rep.filter(x=>x.it.status==='URGENT').length, notes=notesOpen(), ent=diaryOn(t);
+  const off=[...new Set((D.hol.reqs||[]).filter(r=>r.status==='approved'&&r.start_date<=t&&r.end_date>=t).map(r=>r.staff))];
+  const jobs=D.bookings.filter(b=>b.status!=='done'&&b.wanted_date===t);
+  const po=D.pos.filter(p=>p.status==='pending').length, qn=(D.quotes||[]).filter(q=>q.status==='new').length, an=apprNew().length;
+  const tile=(n,l,c)=>`<div class="wt ${n?c:'ok'}"><b>${n}</b><span>${l}</span></div>`;
+  const now=new Date(), clock=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/London'}), dl=now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',timeZone:'Europe/London'});
+  const li=(a)=>a.length?a.map(x=>`<div class="wr">${x}</div>`).join(''):'<div class="wr mute">Nothing</div>';
+  return `<div class="whead"><div><div class="wclock">${clock}</div><div class="wdate">${esc(dl)}</div></div><div class="wbrand">KEY ENGINEERING<br><small>Control Room</small></div><button id="wallX">Close ✕</button></div>
+  <div class="wtiles">${tile(dueNow.length,'Overdue','bad')}${tile(soon.length,'Due in 7 days','warn')}${tile(urgent,'Urgent repairs','bad')}${tile(po,'POs to approve','warn')}${tile(qn,'New quotes','warn')}${tile(an,'Customer answers','warn')}</div>
+  <div class="wcols">
+   <div><h3>Today's diary</h3>${li(ent.map(e=>`${e.start_time?'<b>'+esc(String(e.start_time).slice(0,5))+'</b> ':''}${esc(e.title)}${e.who?' <span class="mute">· '+esc(e.who)+'</span>':''}`))}
+    <h3>Jobs wanted today</h3>${li(jobs.map(b=>`<b>${esc(b.customer)}</b> ${esc(b.engineer_name||'unassigned')}`))}
+    <h3>Off today</h3>${li(off.map(esc))}</div>
+   <div><h3>Overdue</h3>${li(dueNow.slice(0,8).map(d=>`<span class="pill red">${-d.days}d</span> <b>${esc(d.r.customer)}</b> ${esc(d.kind)}${d.r.crane_no?' · '+esc(d.r.crane_no):''}`))}
+    <h3>Notes to do</h3>${li(notes.slice(0,6).map(n=>`${n.due_date&&n.due_date<t?'<span class="pill red">late</span> ':''}${esc(n.note)}`))}</div>
+  </div>`;
+}
+function wallRender(){ const w=$('wall'); if(w&&wallOn){ w.innerHTML=wallHtml(); $('wallX').onclick=wallClose; } }
+function wallOpen(){
+  let w=$('wall'); if(!w){ w=document.createElement('div'); w.id='wall'; document.body.appendChild(w); }
+  wallOn=true; w.classList.remove('hide'); wallRender();
+  clearInterval(wallTick); clearInterval(wallLoad);
+  wallTick=setInterval(wallRender,30000); wallLoad=setInterval(async()=>{ try{ await load(); wallRender(); }catch(e){} },120000);
+  try{ if(w.requestFullscreen) w.requestFullscreen().catch(()=>{}); }catch(e){}
+}
+function wallClose(){ wallOn=false; clearInterval(wallTick); clearInterval(wallLoad); const w=$('wall'); if(w) w.classList.add('hide'); try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){} }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&wallOn) wallClose(); });
+
+// ---------- install as an app ----------
+(function(){
+  try{
+    const mk=px=>{ const c=document.createElement('canvas'); c.width=c.height=px; const x=c.getContext('2d'); x.fillStyle='#101d2d'; x.fillRect(0,0,px,px); x.fillStyle='#f2a900'; x.fillRect(0,px*.86,px,px*.14); x.fillStyle='#fff'; x.font='bold '+(px*.45)+'px Arial,sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText('KE',px/2,px*.45); return c.toDataURL('image/png'); };
+    const i512=mk(512), i192=mk(192);
+    const al=document.createElement('link'); al.rel='apple-touch-icon'; al.href=i192; document.head.appendChild(al);
+    const man={name:'Key Engineering Control Room',short_name:'KE Control',start_url:location.origin+location.pathname,scope:location.origin+location.pathname,display:'standalone',background_color:'#101d2d',theme_color:'#101d2d',icons:[{src:i192,sizes:'192x192',type:'image/png'},{src:i512,sizes:'512x512',type:'image/png',purpose:'any'}]};
+    const ml=document.createElement('link'); ml.rel='manifest'; ml.href=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:'application/manifest+json'})); document.head.appendChild(ml);
+  }catch(e){}
+  let ip=null; window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); ip=e; const b=$('installBtn'); if(b) b.classList.remove('hide'); });
+  window.addEventListener('appinstalled',()=>{ const b=$('installBtn'); if(b) b.classList.add('hide'); });
+  window.addEventListener('DOMContentLoaded',()=>{
+    const b=$('installBtn'); if(!b) return;
+    const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+    if(!standalone&&/iphone|ipad|ipod/i.test(navigator.userAgent)) b.classList.remove('hide');
+    b.onclick=async()=>{ if(ip){ ip.prompt(); await ip.userChoice.catch(()=>{}); ip=null; b.classList.add('hide'); } else alert('To install on an iPhone or iPad: tap the Share button in Safari, then "Add to Home Screen".'); };
+  });
+})();
+
 // ---------- shell ----------
 const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['notes','Notes'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs & quotes'],['customers','Customers'],['register','Crane checks'],['ras','Risk assessments'],['lt','Load tests'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
@@ -2052,7 +2177,7 @@ function render(){
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
-async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); }
+async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); versionCheck(); if(new URLSearchParams(location.search).get('wall')==='1') wallOpen(); }
 
 $('go').onclick=async()=>{
   $('go').disabled=true;
@@ -2077,6 +2202,7 @@ $('pw').addEventListener('keydown',e=>{ if(e.key==='Enter') $('go').click(); });
 $('out').onclick=()=>{ store.del('session'); showLogin(''); };
 $('refresh').onclick=refresh;
 $('globalSearch').addEventListener('input',runGlobalSearch);
+$('wallBtn').onclick=wallOpen;
 $('globalSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('globalSearch').value='';runGlobalSearch();}});
 $('controlStatus').textContent='Signed-in session · last refresh shown on dashboard';
 setInterval(()=>{ if(store.get('session') && !document.hidden) refresh(); }, 90*1000);
