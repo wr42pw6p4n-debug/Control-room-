@@ -92,6 +92,7 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 #login button{width:100%;margin-top:10px;padding:12px}
 details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 .hide{display:none!important}
+#v-portals.ro [data-pgive],#v-portals.ro [data-pnew],#v-portals.ro [data-prev],#v-portals.ro [data-pe],#v-portals.ro [data-pd],#v-portals.ro #pDetails{display:none!important}
 #wall{position:fixed;inset:0;z-index:100000;background:#0b1522;color:#fff;font-family:Arial,Helvetica,sans-serif;padding:2.2vw 3vw;overflow:auto}
 #wall .whead{display:flex;align-items:center;justify-content:space-between;gap:20px}#wall .wclock{font-size:7vw;font-weight:800;line-height:1}#wall .wdate{font-size:2.4vw;color:#9fb3c8}
 #wall .wbrand{font-size:2.2vw;font-weight:800;letter-spacing:.12em;color:#f2b92c;text-align:right}#wall .wbrand small{font-size:1.4vw;color:#9fb3c8;letter-spacing:.2em}
@@ -308,7 +309,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-19.1';
+const APP_BUILD='2026-11-19.2';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -351,7 +352,7 @@ async function load(){
   D.jobsBlocked = jobs === null; D.jobs = jobs || [];
   D.portals = portals; D.fleet = fleet; D.staffPhones = sph; D.tracker = trk; D.visits = (prof[0]&&prof[0].role==='admin')?visits:[];
   const pinMap={}; pins.forEach(x=>{ pinMap[x.name_key]=x.pin; });
-  D.custs = (prof[0]&&prof[0].role==='admin')?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
+  D.custs = (prof[0]&&(prof[0].role==='admin'||prof[0].name==='keyengineeringstaff'))?custs.map(c=>Object.assign({},c,{data:Object.assign({},c.data,{customerpin:pinMap[c.name_key]||''})})):[]; D.hol = {staff:hStaff, bank:hBank, allow:{}, reqs:hReqs, approvers:hApp.map(a=>a.user_id), work:bhw}; hAllow.forEach(a=>{ D.hol.allow[a.staff+'|'+a.year]=num(a.allowance); });
   D.reports = reports; D.folders = folders; D.profile = prof[0]||null;
   D.comps = {}; comps.forEach(c=>D.comps[c.key]=c);
   D.pos = pos; D.bookings = bks; D.people = people; D.phones = {}; phones.forEach(x=>D.phones[x.user_id]=x.phone); D.mats = {}; mats.forEach(m=>D.mats[m.job_id]=num(m.amount)); D.loaded = new Date();
@@ -1365,6 +1366,7 @@ async function copyText(t){
 // ----- Key Engineering customer portal logins: company name + 6-digit PIN (customers.data.customerpin, checked by the portal) -----
 let pinQ = '';
 function viewPortals(){
+  $('v-portals').classList.toggle('ro',!portalOK());
   const withPin=D.custs.filter(c=>String((c.data&&c.data.customerpin)||'').trim()).length;
   $('v-portals').innerHTML=`<div class="card"><h2>Customer portal logins <span class="mute small" id="pinCount">${withPin} of ${D.custs.length} customers have access</span></h2>
     <div class="bar" style="box-shadow:none;padding:0;border:0">
@@ -2167,6 +2169,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&wallOn) wallClose(
 const isSharedLogin = () => !!(D.profile && D.profile.name==='keyengineeringstaff');
 const TRUSTED_DELETE = ['jordan','ashleigh'];
 const whoName = () => { const w=store.get('whoami'); return (w&&w.day===todayIso()&&w.name)?w.name:''; };
+const portalSee = () => portalOK() || (isSharedLogin() && TRUSTED_DELETE.includes(whoName().toLowerCase()));
 const canDeleteReport = () => portalOK() || (isSharedLogin() && TRUSTED_DELETE.includes(whoName().toLowerCase()));
 function paintWho(){
   const el=$('who'), sw=$('switchWho'); if(!el) return;
@@ -2201,10 +2204,10 @@ async function deleteReport(id){
 const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['notes','Notes'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs & quotes'],['customers','Customers'],['register','Crane checks'],['ras','Risk assessments'],['lt','Load tests'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
   if(tab==='visits') tab='bookings';
-  if((tab==='portals'||tab==='backups')&&!portalOK()) tab='overview';
+  if((tab==='portals'&&!portalSee())||(tab==='backups'&&!portalOK())) tab='overview';
   const due=dueList(), rep=repairsList();
   const badge={backups:(portalOK()&&backupStale())?'!':0, due:due.filter(d=>d.days<0).length, repairs:rep.open.length, po:D.pos.filter(p=>p.status==='pending'||(p.status==='approved'&&p.order_status==='to_order')).length+(D.quotes||[]).filter(q=>q.status==='new').length, notes:notesLate().length, bookings:D.bookings.filter(b=>b.status==='booked').length+D.visits.filter(v=>v.status==='new').length, folders:D.folders.filter(f=>!f.printed_at).length, hols:D.hol.reqs.filter(r=>r.status==='pending').length, fleet:D.fleet.filter(f=>fleetDays(f)<=30).length};
-  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'&&k!=='backups')||portalOK()).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
+  $('tabs').innerHTML=TABS.filter(([k])=>(k!=='portals'||portalSee())&&(k!=='backups'||portalOK())).map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}${badge[k]?`<span class="n ${k==='due'||k==='backups'||(k==='hols'&&holSummary().clashes.length)?'hot':''}">${badge[k]}</span>`:''}</button>`).join('');
   $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;store.set('tab',tab);render();});
   TABS.forEach(([k])=>$('v-'+k).classList.toggle('hide',k!==tab));
   $('v-visits').classList.toggle('hide',!(tab==='bookings'&&portalOK()));
