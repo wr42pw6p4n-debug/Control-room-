@@ -205,6 +205,7 @@ tr.hsoon td{background:var(--ambbg)}
     <h1>Key Engineering Office</h1>
     <span class="who" id="who"></span>
     <span class="who" id="synced"></span>
+    <button id="switchWho" class="hide">Switch person</button>
     <button id="installBtn" class="hide">Install app</button>
     <button id="wallBtn">Wall screen</button>
     <button id="refresh">Refresh</button>
@@ -307,7 +308,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-18.1';
+const APP_BUILD='2026-11-19.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -1650,6 +1651,7 @@ function viewCustomers(){
   const detail=custSel?custDetail(idx.get(custSel),dueBy[custSel]||[],repBy[custSel]||[]):`<div class="card"><span class="mute">Choose a customer to see their cranes, due dates, repairs, reports and requests in one place. ${all.length} customers.</span></div>`;
   $('v-customers').innerHTML=`<div class="custwrap"><div class="custlist card"><input type="search" id="custQ" placeholder="Search customer, crane or ID…" value="${esc(custQ)}"><div class="custrows">${list}</div></div><div class="custdetail">${detail}</div></div>`;
   $('v-customers').querySelectorAll('button[data-ct]').forEach(b=>b.onclick=()=>{ custType=b.dataset.ct; viewCustomers(); });
+  $('v-customers').querySelectorAll('button[data-cdel]').forEach(b=>b.onclick=()=>deleteReport(b.dataset.cdel));
   $('v-customers').querySelectorAll('button[data-cpdf]').forEach(b=>b.onclick=async()=>{
     const r=D.reports.find(x=>x.id===b.dataset.cpdf); if(!r) return; const old=b.textContent; b.disabled=true; b.textContent='Opening…';
     const w=window.open('','_blank');   // opened inside the click so pop-up blockers allow it
@@ -1681,7 +1683,7 @@ function custDetail(e,dues,reps){
   const cnt=t=>t==='All'?e.reports.length:e.reports.filter(r=>kindOf(r)===t).length;
   const shownRep=e.reports.filter(r=>custType==='All'||kindOf(r)===custType);
   const typeBtns=['All','Service','Inspection','LOLER'].map(t=>`<button data-ct="${t}" class="${t===custType?'primary':''}">${t} (${cnt(t)})</button>`).join(' ');
-  const recHtml=`<p style="margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap">${typeBtns}</p>`+(shownRep.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Date</th><th>Type</th><th>Crane</th><th>Report</th><th>Engineer</th><th>Defects</th><th></th></tr>${shownRep.map(r=>{ const it=((r.data&&r.data.items)||[]).filter(Boolean), u=it.filter(i=>i.status==='URGENT').length, a=it.filter(i=>i.status==='ATTN').length; return `<tr><td>${uk(r.report_date)}</td><td>${esc(kindOf(r))}</td><td>${esc(r.crane_no||'')}</td><td>${esc(r.report_no||'')}</td><td>${esc(r.engineer||'')}</td><td>${u?`<b style="color:var(--red)">${u} urgent</b>`:''}${u&&a?', ':''}${a?a+' attn':''}${!u&&!a?'none':''}</td><td class="r"><button data-cpdf="${esc(r.id)}">Open PDF</button></td></tr>`; }).join('')}</table></div>`:'<span class="mute">No reports of this type.</span>');
+  const recHtml=`<p style="margin:0 0 10px;display:flex;gap:6px;flex-wrap:wrap">${typeBtns}</p>`+(shownRep.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Date</th><th>Type</th><th>Crane</th><th>Report</th><th>Engineer</th><th>Defects</th><th></th></tr>${shownRep.map(r=>{ const it=((r.data&&r.data.items)||[]).filter(Boolean), u=it.filter(i=>i.status==='URGENT').length, a=it.filter(i=>i.status==='ATTN').length; return `<tr><td>${uk(r.report_date)}</td><td>${esc(kindOf(r))}</td><td>${esc(r.crane_no||'')}</td><td>${esc(r.report_no||'')}</td><td>${esc(r.engineer||'')}</td><td>${u?`<b style="color:var(--red)">${u} urgent</b>`:''}${u&&a?', ':''}${a?a+' attn':''}${!u&&!a?'none':''}</td><td class="r"><button data-cpdf="${esc(r.id)}">Open PDF</button>${canDeleteReport()?` <button data-cdel="${esc(r.id)}" style="color:var(--red)">Delete</button>`:''}</td></tr>`; }).join('')}</table></div>`:'<span class="mute">No reports of this type.</span>');
   const canonJ=nameMap(), jdate=j=>((((j.data||{}).time||[])[0]||{}).date)||(j.data||{}).date||'';
   const jobsSorted=e.jobs.slice().sort((p,q)=>jdate(q).localeCompare(jdate(p)));
   const jobsHtml=jobsSorted.length?`<div class="wrap" style="max-height:460px;overflow:auto"><table><tr><th>Job</th><th>Date</th><th>Type</th><th>Site</th><th>Status</th><th>Engineers</th><th></th></tr>${jobsSorted.map(j=>{ const x=j.data||{}; return `<tr><td><b>${esc(x.job||j.id)}</b></td><td>${uk(jdate(j))}</td><td>${esc(x.type||'')}</td><td>${esc(x.site||'')}</td><td>${esc(x.status||'')}</td><td class="small">${esc((x.engineers||[]).map(canonJ).join(' + '))}</td><td class="r"><button data-cjob="${esc(jdate(j))}">Open</button></td></tr>`; }).join('')}</table></div>`:`<span class="mute">${D.jobsBlocked?'This login cannot see job sheets.':'No job sheets for this customer.'}</span>`;
@@ -1727,7 +1729,7 @@ function viewBackups(){
 }
 
 // ---------- crane check register: weekly + monthly checks, ticked off here or automatically from inspection reports ----------
-const regKey = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const regKey = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'').replace(/([a-z])0+(?=\d)/g,'$1');   // FS07 = FS7 = fs 7
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 let regCust='', regWeekFrom='', regYear=new Date().getFullYear();
 function isoWeekOf(dateIso){
@@ -1745,7 +1747,7 @@ function regIndexes(){
   if(D._regFor===D.reports&&D._regChecksFor===D.regChecks&&D._regIdx) return D._regIdx;
   const manual=new Map(); D.regChecks.forEach(r=>manual.set(nk(r.customer)+'|'+regKey(r.crane)+'|'+r.period,r));
   const auto=new Map();   // customer|crane -> [report dates of inspections], newest first (reports arrive newest first)
-  D.reports.forEach(r=>{ if(!/insp/i.test(r.visit_type||'')) return; const k=nk(r.customer)+'|'+regKey(r.crane_no); if(!auto.has(k)) auto.set(k,[]); auto.get(k).push(r); });
+  D.reports.forEach(r=>{ if(!/insp/i.test(r.visit_type||'')) return; new Set([regKey(r.crane_no),regKey(r.id_no)].filter(Boolean)).forEach(c=>{ const k=nk(r.customer)+'|'+c; if(!auto.has(k)) auto.set(k,[]); auto.get(k).push(r); }); });
   D._regFor=D.reports; D._regChecksFor=D.regChecks; D._regIdx={manual,auto}; return D._regIdx;
 }
 // state of one crane in one period: done / late / open / future / na
@@ -2161,6 +2163,40 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&wallOn) wallClose(
   });
 })();
 
+// ---------- shared staff login: ask who is using it, and let trusted staff delete a wrong report (with an undo log) ----------
+const isSharedLogin = () => !!(D.profile && D.profile.name==='keyengineeringstaff');
+const TRUSTED_DELETE = ['jordan','ashleigh'];
+const whoName = () => { const w=store.get('whoami'); return (w&&w.day===todayIso()&&w.name)?w.name:''; };
+const canDeleteReport = () => portalOK() || (isSharedLogin() && TRUSTED_DELETE.includes(whoName().toLowerCase()));
+function paintWho(){
+  const el=$('who'), sw=$('switchWho'); if(!el) return;
+  const s=store.get('session')||{};
+  if(isSharedLogin()){ const n=whoName(); el.textContent=(n?n+' · ':'')+'staff login'; if(sw) sw.classList.toggle('hide',false); }
+  else { el.textContent=s.email||''; if(sw) sw.classList.add('hide'); }
+}
+function askWho(force){
+  if(!isSharedLogin()) return Promise.resolve('');
+  if(!force&&whoName()){ paintWho(); return Promise.resolve(whoName()); }
+  return new Promise(res=>{
+    const names=(D.staffPhones||[]).map(x=>x.name).filter(Boolean);
+    const m=document.createElement('div'); m.className='regmodal'; m.style.zIndex=100001;
+    m.innerHTML=`<div class="card" style="max-width:440px"><h2>Who is signing in?</h2><p class="small mute">This is the shared staff login. Pick your name so the Control Room knows who made each change.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px">${names.map(n=>`<button class="primary" data-w="${esc(n)}" style="font-size:18px;padding:14px 22px">${esc(n)}</button>`).join('')||'<span class="mute">No staff names are set up yet.</span>'}</div></div>`;
+    document.body.appendChild(m);
+    m.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{ store.set('whoami',{name:b.dataset.w,day:todayIso()}); m.remove(); paintWho(); try{ render(); }catch(e){} res(b.dataset.w); });
+  });
+}
+async function deleteReport(id){
+  const r=D.reports.find(x=>x.id===id); if(!r) return;
+  if(!canDeleteReport()){ alert('You do not have permission to delete reports.'); return; }
+  if(!confirm(`Delete this report?\n\n${r.report_no||'(no number)'} · ${r.customer||''}\n${r.visit_type||''} · crane ${r.crane_no||r.id_no||''} · ${uk(r.report_date)}\n\nA copy is kept in a deleted-reports log so it can be restored by the office. The PDF file is not removed.`)) return;
+  try{
+    const res=await api('/rest/v1/rpc/delete_report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({p_id:id,p_by:whoName()||(D.profile&&D.profile.name)||''})});
+    if(!res.ok) throw new Error(await res.text());
+    await load(); render(); $('msg').innerHTML='<div class="note">Report deleted. A copy is kept in the deleted-reports log.</div>';
+  }catch(e){ alert('Could not delete: '+(e.message||e)); }
+}
+
 // ---------- shell ----------
 const TABS=[['overview','Overview'],['today','Today'],['diary','Diary'],['notes','Notes'],['bookings','Bookings'],['week','Week by engineer'],['folders','Weekly folders'],['hols','Holidays'],['due','Due soon'],['repairs','Repairs'],['po','POs & quotes'],['customers','Customers'],['register','Crane checks'],['ras','Risk assessments'],['lt','Load tests'],['portals','Portals'],['chat','Chat'],['fleet','Vans'],['backups','Backups']];
 function render(){
@@ -2177,7 +2213,7 @@ function render(){
 }
 async function refresh(){ $('refresh').disabled=true; try{ await load(); render(); if(portalOK()) loadBackups().then(()=>render()); }catch(e){ if(!store.get('session')) showLogin(e.message); else $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; } finally{ $('refresh').disabled=false; } }
 function showLogin(m){ $('app').classList.add('hide'); $('login').classList.remove('hide'); $('loginErr').className='err'+(m?'':' hide'); $('loginErr').textContent=m||''; }
-async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); versionCheck(); if(new URLSearchParams(location.search).get('wall')==='1') wallOpen(); }
+async function showApp(){ $('login').classList.add('hide'); $('app').classList.remove('hide'); const s=store.get('session')||{}; $('who').textContent=s.email||''; $('who').title='Signed in as '+(s.email||''); tab=store.get('tab')||'overview'; if(tab==='visits') tab='bookings'; if(!TABS.some(t=>t[0]===tab)) tab='overview'; await refresh(); paintWho(); await askWho(false); versionCheck(); if(new URLSearchParams(location.search).get('wall')==='1') wallOpen(); }
 
 $('go').onclick=async()=>{
   $('go').disabled=true;
@@ -2203,6 +2239,7 @@ $('out').onclick=()=>{ store.del('session'); showLogin(''); };
 $('refresh').onclick=refresh;
 $('globalSearch').addEventListener('input',runGlobalSearch);
 $('wallBtn').onclick=wallOpen;
+$('switchWho').onclick=()=>askWho(true);
 $('globalSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('globalSearch').value='';runGlobalSearch();}});
 $('controlStatus').textContent='Signed-in session · last refresh shown on dashboard';
 setInterval(()=>{ if(store.get('session') && !document.hidden) refresh(); }, 90*1000);
