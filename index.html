@@ -311,7 +311,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-21.1';
+const APP_BUILD='2026-11-21.2';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -1629,7 +1629,7 @@ function viewFleet(){
 // ---------- customer visit requests (sent from the customer portal) ----------
 function viewVisits(){
   const open=D.visits.filter(x=>x.status==='new'), done=D.visits.filter(x=>x.status!=='new').slice(0,30);
-  const row=x=>`<tr${String(x.message||'').startsWith('\u{1F6D1}')?' style="background:#fdecea"':''}><td>${uk(String(x.created_at).slice(0,10))} <span class="small mute">${new Date(x.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span></td><td><b>${esc(x.customer)}</b><div class="small mute">${esc(x.contact_name||'')} ${x.phone?'· '+esc(x.phone):''} ${x.email?'· <a href="mailto:'+esc(x.email)+'">'+esc(x.email)+'</a>':''}</div></td><td>${esc(x.crane_no||'')}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.message||'')}${x.preferred_date?`<div class="small mute">Preferred: ${esc(x.preferred_date)}</div>`:''}</td><td>${x.status==='new'?`<button data-vh="${esc(x.id)}" class="primary">Mark handled</button>`:'<span class="pill grey">HANDLED</span>'}</td></tr>`;
+  const row=x=>`<tr${String(x.message||'').startsWith('\u{1F6D1}')?' style="background:rgba(198,40,40,.22);box-shadow:inset 4px 0 0 #c62828"':''}><td>${uk(String(x.created_at).slice(0,10))} <span class="small mute">${new Date(x.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span></td><td><b>${esc(x.customer)}</b><div class="small mute">${esc(x.contact_name||'')} ${x.phone?'· '+esc(x.phone):''} ${x.email?'· <a href="mailto:'+esc(x.email)+'">'+esc(x.email)+'</a>':''}</div></td><td>${esc(x.crane_no||'')}</td><td style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(x.message||'')}${x.preferred_date?`<div class="small mute">Preferred: ${esc(x.preferred_date)}</div>`:''}</td><td>${x.status==='new'?`<button data-vh="${esc(x.id)}" class="primary">Mark handled</button>`:'<span class="pill grey">HANDLED</span>'}</td></tr>`;
   $('v-visits').innerHTML=`<div class="card wrap"><h2>Waiting <span class="mute small">${open.length}</span></h2>${open.length?`<table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${open.map(row).join('')}</table>`:'<span class="mute">No customer requests waiting. They arrive here when a customer asks for a visit from the portal.</span>'}</div>${done.length?`<div class="card wrap"><h2>Handled recently</h2><table><tr><th>Sent</th><th>Customer</th><th>Crane</th><th>Request</th><th></th></tr>${done.map(row).join('')}</table></div>`:''}`;
   $('v-visits').querySelectorAll('button[data-vh]').forEach(b=>b.onclick=async()=>{ b.disabled=true; try{ await api('/rest/v1/visit_requests?id=eq.'+encodeURIComponent(b.dataset.vh),{method:'PATCH',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({status:'handled',handled_by:(store.get('session')||{}).uid})}); await load(); render(); }catch(e){ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; b.disabled=false; } });
 }
