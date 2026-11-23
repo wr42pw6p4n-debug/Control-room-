@@ -311,7 +311,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-23.1';
+const APP_BUILD='2026-11-24.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -670,7 +670,9 @@ function viewBookings(){
   const open=D.bookings.filter(b=>b.status==='booked');
   const out=D.bookings.filter(b=>b.status==='issued'||b.status==='accepted');
   const stillOpen=repairsList().open;
-  const allDone=b=>b.job_type==='Repair'&&b.details&&b.details.crane!=null&&!stillOpen.some(x=>String(x.r.crane_no||'').trim().toLowerCase()===String(b.details.crane||'').trim().toLowerCase()&&String(x.r.customer||'').trim().toLowerCase()===String(b.customer||'').trim().toLowerCase());
+  const allDone=b=>{ if(b.job_type!=='Repair'||!b.details||b.details.crane==null) return false; const lc=v=>String(v||'').trim().toLowerCase(), cu=lc(b.customer), cr=lc(b.details.crane), id=lc(b.details.idno);
+    // still open if any outstanding repair is on the same customer AND the same crane - matched by name OR by ID number (a crane can be typed differently on two reports, e.g. "Welder crane 4" / "4 (Welders)")
+    return !stillOpen.some(x=>lc(x.r.customer)===cu&&(lc(x.r.crane_no)===cr||(id&&lc(x.r.id_no)===id))); };
   const cutoff=addDays(todayIso(),-7);
   const done=D.bookings.filter(b=>b.status==='done'&&(b.done_at||'').slice(0,10)>=cutoff);
   const sentTo=b=>{ const cu=String(b.customer||'').trim().toLowerCase(); const labs=((b.details&&b.details.items)||[]).map(i=>String(i.label||'')); return (D.appr||[]).find(a=>String(a.customer||'').trim().toLowerCase()===cu&&(a.items||[]).some(i=>labs.some(l=>l&&String(i.label||i.text||'').indexOf(l)>=0||String(i.key||'').indexOf(l.toLowerCase().replace(/[^a-z0-9]+/g,'_'))>=0))); };
