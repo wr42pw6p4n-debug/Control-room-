@@ -311,7 +311,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-21.2';
+const APP_BUILD='2026-11-23.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -1367,6 +1367,14 @@ async function copyText(t){
   try{ await navigator.clipboard.writeText(t); return true; }
   catch(e){ const a=document.createElement('textarea'); a.value=t; a.style.position='fixed'; a.style.opacity='0'; document.body.appendChild(a); a.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(x){} a.remove(); return ok; }
 }
+// copy an email so that pasting it into Outlook / Gmail gives a real, clickable link (plain text from a mailto: often leaves links dead in Outlook)
+async function copyRich(body, link){
+  const esc2=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  let h=esc2(body).replace(/\n/g,'<br>'); if(link) h=h.split(esc2(link)).join('<a href="'+esc2(link)+'">'+esc2(link)+'</a>');
+  h='<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">'+h+'</div>';
+  try{ if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([h],{type:'text/html'}),'text/plain':new Blob([body],{type:'text/plain'})})]); return true; } }catch(e){}
+  try{ const d=document.createElement('div'); d.innerHTML=h; d.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(d); const r=document.createRange(); r.selectNodeContents(d); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); const ok=document.execCommand('copy'); sel.removeAllRanges(); d.remove(); return ok; }catch(e){ return false; }
+}
 // ----- Key Engineering customer portal logins: company name + 6-digit PIN (customers.data.customerpin, checked by the portal) -----
 let pinQ = '';
 function viewPortals(){
@@ -2042,7 +2050,7 @@ function apprAsk(customer){
   m.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto"><h2>Email ${esc(customer)} for approval</h2><p class="small mute">Tick the repairs to include. The customer gets one link where they accept or decline each one.</p>
    ${list.map((x,i)=>`<label class="small" style="display:block;margin:6px 0"><input type="checkbox" class="apk" data-i="${i}" checked> ${x.it.status==='URGENT'?'<span class="pill red">URGENT</span>':'<span class="pill amber">ATTN</span>'} ${esc(x.r.crane_no||'')} – ${esc(x.it.group||'')} ${x.it.group&&x.it.label?'– ':''}${esc(x.it.label||'')}</label>`).join('')}
    <label class="small" style="display:block;margin-top:10px">Send to (email)<input id="apE" type="email" value="${esc(emailForCust(customer))}" placeholder="customer@example.com" style="width:100%"></label>
-   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="apGo">Create email</button><button id="apCopy">Copy message instead</button><button id="apX">Cancel</button></p><div class="small mute" id="apMsg"></div></div>`;
+   <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="apGo">Create email</button><button id="apCopy">Copy message instead</button><button id="apRich">Copy with clickable link</button><button id="apX">Cancel</button></p><p class="small mute" style="margin:6px 0 0">On a laptop with Outlook, use <b>Copy with clickable link</b>, then paste into a new email. The subject is copied on its own line at the top.</p><div class="small mute" id="apMsg"></div></div>`;
   document.body.appendChild(m); const $$=i=>m.querySelector('#'+i), close=()=>m.remove(); m.onclick=ev=>{ if(ev.target===m) close(); }; $$('apX').onclick=close;
   const make=async()=>{
     const sel=[...m.querySelectorAll('.apk')].filter(c=>c.checked).map(c=>list[+c.dataset.i]); if(!sel.length){ $$('apMsg').textContent='Tick at least one repair.'; return null; }
@@ -2054,6 +2062,7 @@ function apprAsk(customer){
     D.appr=await getAll('repair_approvals','select=*&order=created_at.desc'); return row;
   };
   $$('apGo').onclick=async()=>{ try{ const a=await make(); if(!a) return; const d=apprEmail(a); render(); close(); location.href='mailto:'+encodeURIComponent(a.contact_email||'').replace('%40','@')+'?subject='+encodeURIComponent(d.subject)+'&body='+encodeURIComponent(d.body); }catch(e){ $$('apMsg').textContent='Could not save: '+e.message; } };
+  $$('apRich').onclick=async()=>{ try{ const a=await make(); if(!a) return; const d=apprEmail(a); const ok=await copyRich(d.body,apprLink(a)); render(); $$('apMsg').innerHTML=ok?'Copied. Open a new email, paste (Ctrl+V), and use this subject: <b>'+esc(d.subject)+'</b>':'Could not copy - use Copy message instead.'; }catch(e){ $$('apMsg').textContent='Could not save: '+e.message; } };
   $$('apCopy').onclick=async()=>{ try{ const a=await make(); if(!a) return; const d=apprEmail(a); await copyText(d.subject+'\n\n'+d.body); render(); $$('apMsg').textContent='Copied. Paste it into an email.'; }catch(e){ $$('apMsg').textContent='Could not save: '+e.message; } };
 }
 function bindAppr(root){
