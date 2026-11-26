@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Key Engineering — Customer Portal</title>
+<link rel="icon" href="favicon-32.png">
+<style>
+  :root{
+    --bg:#f1f3f6; --card:#fff; --ink:#161b22; --soft:#5a6572; --line:#d7dce2;
+    --steel:#161b22; --steel2:#2a3340; --yellow:#f2b800; --red:#d81e2c; --amber:#e08a1c; --green:#1c9c4a;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  header{background:linear-gradient(180deg,var(--steel),var(--steel2)); color:#fff; padding:16px 16px 14px; border-bottom:4px solid var(--yellow);}
+  header .in{max-width:860px; margin:0 auto; display:flex; align-items:center; gap:12px;}
+  header img{width:44px; height:44px; border-radius:9px;}
+  header h1{font-size:18px; margin:0; letter-spacing:.3px;}
+  header p{margin:0; font-size:12.5px; opacity:.8;}
+  main{max-width:860px; margin:0 auto; padding:16px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px;}
+  label{display:block; font-size:12px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--soft); margin:0 0 5px;}
+  input[type=text],input[type=password]{width:100%; padding:13px 12px; font-size:17px; border:1.5px solid var(--line); border-radius:9px; background:#fff; color:var(--ink);}
+  input:focus{outline:3px solid rgba(242,184,0,.45); border-color:var(--steel2);}
+  .field{margin-bottom:14px;}
+  button{font:inherit; cursor:pointer;}
+  .btn{display:inline-block; padding:13px 20px; border-radius:9px; border:0; background:var(--steel); color:#fff; font-weight:700; font-size:16px;}
+  .btn.full{width:100%;}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .btn.ghost{background:#fff; color:var(--steel); border:1.5px solid var(--steel);}
+  .btn.small{padding:9px 14px; font-size:14px;}
+  .err{color:var(--red); font-weight:600; margin:12px 0 0; min-height:1.2em;}
+  .note{font-size:13px; color:var(--soft); margin-top:12px;}
+  .top{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+  .top h2{margin:0; font-size:20px;}
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .tabs button{padding:8px 14px; border-radius:20px; border:1.5px solid var(--line); background:#fff; font-weight:600; font-size:14px; color:var(--soft);}
+  .tabs button.on{background:var(--steel); border-color:var(--steel); color:#fff;}
+  .rep{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
+  .rep .r1{display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;}
+  .rep .date{font-size:17px; font-weight:700;}
+  .chip{display:inline-block; font-size:12px; font-weight:700; padding:2px 10px; border-radius:12px; color:#fff; background:var(--steel2); margin-left:8px; vertical-align:2px;}
+  .chip.Service{background:var(--green);} .chip.Inspection{background:#2563a8;} .chip.LOLER{background:var(--amber);}
+  .meta{font-size:14px; color:var(--soft); margin:6px 0 0;}
+  .meta b{color:var(--ink); font-weight:600;}
+  .flags{margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;}
+  .flag{font-size:13px; font-weight:700; padding:3px 10px; border-radius:8px;}
+  .flag.u{background:#fde8ea; color:var(--red);} .flag.a{background:#fdf0dc; color:#a85f06;} .flag.ok{background:#e4f5ea; color:var(--green);}
+  .due.over{color:var(--red); font-weight:700;}
+  .rep .act{margin-top:10px;}
+  textarea{width:100%; padding:13px 12px; font-size:17px; font-family:inherit; border:1.5px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); resize:vertical;}
+  textarea:focus{outline:3px solid rgba(242,184,0,.45); border-color:var(--steel2);}
+  .visitbar{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;}
+  .visitbar .meta{margin:0; color:var(--green); font-weight:600;}
+  .empty{text-align:center; color:var(--soft); padding:30px 10px;}
+  footer{max-width:860px; margin:0 auto; padding:6px 16px 30px; font-size:12px; color:var(--soft);}
+  .chip.Load{background:#6b4fbb;}
+  .flag.pass{background:#e4f5ea; color:var(--green);} .flag.fail{background:#fde8ea; color:var(--red);}
+  #certOv{position:fixed; inset:0; background:rgba(0,0,0,.6); overflow:auto; padding:14px; display:none; z-index:50;}
+  #certOv .sheet{background:#fff; color:#000; max-width:760px; margin:0 auto; border-radius:12px; padding:18px;}
+  #certOv .bar{display:flex; gap:8px; justify-content:space-between; margin-bottom:12px;}
+  #certOv h3{margin:0 0 2px; font-size:20px;}
+  #certOv table{width:100%; border-collapse:collapse; margin:10px 0;}
+  #certOv td{border:1px solid #bbb; padding:7px 9px; font-size:15px;} #certOv td+td{text-align:right; font-weight:600;}
+  .res{font-size:22px; font-weight:800; margin:6px 0;}
+  @media print{ body.printing>*:not(#certOv){display:none!important;} body.printing #certOv{position:static!important; background:#fff!important; padding:0!important; display:block!important;} body.printing #certOv .bar{display:none!important;} body.printing #certOv .sheet{max-width:none; border-radius:0; padding:0;} }
+  @media (max-width:520px){ main{padding:12px;} .btn.small{width:100%;} }
+</style>
+</head>
+<body>
+<header><div class="in">
+  <img src="icon-180.png" alt="">
+  <div><h1>Key Engineering (Chesterfield) Ltd</h1><p>Customer portal &mdash; your crane service, inspection, LOLER reports, load test certificates, risk assessments &amp; job sheets</p></div>
+</div></header>
+
+<main>
+  <section id="loginView" class="card">
+    <div class="field"><label for="co">Company name</label>
+      <input type="text" id="co" autocomplete="organization" autocapitalize="words" autocorrect="off"></div>
+    <div class="field"><label for="pin">PIN</label>
+      <input type="password" id="pin" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></div>
+    <button class="btn full" id="go" type="button">View my reports</button>
+    <p class="err" id="err" role="alert"></p>
+    <p class="note">Your PIN was given to you by Key Engineering. If you've lost it, or need a report that isn't listed, contact us and we'll help.</p>
+  </section>
+
+  <section id="listView" style="display:none;">
+    <div class="top"><h2 id="who"></h2><button class="btn ghost small" id="out" type="button">Sign out</button></div>
+    <div class="visitbar"><button class="btn small" id="vOpen" type="button">Request a visit</button><span class="meta" id="vDone"></span></div>
+    <div class="card" id="visitForm" style="display:none; margin-bottom:12px;">
+      <h3 style="margin:0 0 4px;">Request a visit</h3>
+      <p class="note" style="margin:0 0 14px;">Tell us what you need and we'll get back to you to arrange it.</p>
+      <div class="field"><label for="vMsg">What do you need?</label><textarea id="vMsg" rows="4" maxlength="1000"></textarea></div>
+      <div class="field"><label for="vCrane">Crane / equipment (optional)</label><input type="text" id="vCrane" maxlength="60"></div>
+      <div class="field"><label for="vName">Your name</label><input type="text" id="vName" maxlength="100" autocomplete="name"></div>
+      <div class="field"><label for="vPhone">Phone</label><input type="text" id="vPhone" maxlength="40" inputmode="tel" autocomplete="tel"></div>
+      <div class="field"><label for="vEmail">Email (optional)</label><input type="text" id="vEmail" maxlength="120" inputmode="email" autocomplete="email"></div>
+      <div class="field"><label for="vDate">Preferred date (optional)</label><input type="text" id="vDate" maxlength="60" placeholder="e.g. next week, or 20/11"></div>
+      <button class="btn" id="vSend" type="button">Send request</button> <button class="btn ghost" id="vCancel" type="button">Cancel</button>
+      <p class="err" id="vErr" role="alert"></p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="list"></div>
+  </section>
+</main>
+<div id="certOv"><div class="sheet"><div class="bar"><button class="btn small" id="certPrint" type="button">Print / save as PDF</button><button class="btn ghost small" id="certClose" type="button">Close</button></div><div id="certBody"></div></div></div>
+<footer>For your security this page signs you out after 15 minutes of inactivity. Reports and certificates are listed newest first.</footer>
+
+<script>
+(function(){
+'use strict';
+var API = 'https://eyerpokgadrgxticqzez.supabase.co/functions/v1/portal';
+var KEY = 'sb_publishable_FsyUdlUOTgA51pkAy5pNiA_AsHqq6Ed';
+var creds = null, data = null, filter = 'All', idle = null;
+var $ = function(id){ return document.getElementById(id); };
+
+function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls; if(text != null) e.textContent = text; return e; }
+function uk(iso){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; }
+function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth()+1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+
+function call(body){
+  return fetch(API, {method:'POST', headers:{'Content-Type':'application/json', apikey:KEY}, body:JSON.stringify(body)})
+    .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return {ok:r.ok, status:r.status, j:j}; }); });
+}
+function bump(){
+  clearTimeout(idle);
+  if(creds) idle = setTimeout(signOut, 15*60*1000);
+}
+['click','keydown','touchstart','scroll'].forEach(function(ev){ document.addEventListener(ev, bump, {passive:true}); });
+
+function signOut(){
+  creds = null; data = null; filter = 'All';
+  $('visitForm').style.display = 'none'; $('vDone').textContent = ''; visitReset();
+  $('pin').value = ''; $('err').textContent = '';
+  $('listView').style.display = 'none'; $('loginView').style.display = '';
+  $('list').textContent = ''; $('tabs').textContent = ''; $('certOv').style.display = 'none'; $('certBody').textContent = '';
+  clearTimeout(idle);
+}
+
+function login(){
+  var co = $('co').value.trim(), pin = $('pin').value.trim();
+  $('err').textContent = '';
+  if(!co || !pin){ $('err').textContent = 'Please enter your company name and PIN.'; return; }
+  var b = $('go'); b.disabled = true; b.textContent = 'Checking…';
+  call({action:'list', customer:co, pin:pin}).then(function(r){
+    if(!r.ok){ $('err').textContent = (r.j && r.j.error) || 'Something went wrong. Please try again.'; return; }
+    creds = {customer:co, pin:pin}; data = r.j;
+    filter = (!(data.reports||[]).length && (data.certificates||[]).length) ? 'Load tests' : (!(data.reports||[]).length && (data.job_sheets||[]).length) ? 'Job sheets' : (!(data.reports||[]).length && (data.risk_assessments||[]).length) ? 'Risk assessments' : (!(data.reports||[]).length && (data.documents||[]).length) ? 'Documents' : 'All';
+    $('pin').value = '';
+    $('loginView').style.display = 'none'; $('listView').style.display = '';
+    $('who').textContent = data.customer;
+    bump(); render();
+  }).catch(function(){ $('err').textContent = 'No connection. Please check your signal and try again.'; })
+  .then(function(){ b.disabled = false; b.textContent = 'View my reports'; });
+}
+
+function render(){
+  var reps = (data && data.reports) || [];
+  var types = ['All'];
+  ['Service','Inspection','LOLER'].forEach(function(t){ if(reps.some(function(r){ return r.visit_type === t; })) types.push(t); });
+  var tabs = $('tabs'); tabs.textContent = '';
+  var certs = (data && data.certificates) || [];
+  if(certs.length) types.push('Load tests');
+  var ras = (data && data.risk_assessments) || [];
+  if(ras.length) types.push('Risk assessments');
+  if(reps.some(function(r){ return r.crane_no; })) types.push('Crane history');
+  var jobs = (data && data.job_sheets) || [];
+  if(jobs.length) types.push('Job sheets');
+  var docs = (data && data.documents) || [];
+  if(docs.length) types.push('Documents');
+  if(types.length > 2 || docs.length || certs.length || ras.length || jobs.length || types.indexOf('Crane history') > -1) types.forEach(function(t){
+    var b = el('button', t === filter ? 'on' : '', t === 'All' ? 'All (' + reps.length + ')' : t === 'Load tests' ? 'Load tests (' + certs.length + ')' : t === 'Risk assessments' ? 'Risk assessments (' + ras.length + ')' : t === 'Job sheets' ? 'Job sheets (' + jobs.length + ')' : t === 'Documents' ? 'Documents (' + docs.length + ')' : t); b.type = 'button';
+    b.addEventListener('click', function(){ filter = t; render(); });
+    tabs.appendChild(b);
+  });
+  var list = $('list'); list.textContent = '';
+  if(filter === 'Load tests'){ renderCerts(certs, list); return; }
+  if(filter === 'Risk assessments'){ renderRas(ras, list); return; }
+  if(filter === 'Crane history'){ renderCranes(reps, list); return; }
+  if(filter === 'Job sheets'){ renderJobs(jobs, list); return; }
+  if(filter === 'Documents'){ renderDocs(docs, list); return; }
+  var shown = reps.filter(function(r){ return filter === 'All' || r.visit_type === filter; });
+  if(!shown.length){ list.appendChild(el('div','empty','No reports to show yet.')); return; }
+  shown.forEach(function(r){
+    var c = el('div','rep');
+    var r1 = el('div','r1');
+    var left = el('div');
+    var d = el('span','date', uk(r.report_date) || 'Undated');
+    left.appendChild(d); left.appendChild(el('span','chip ' + (r.visit_type || ''), r.visit_type || 'Service'));
+    r1.appendChild(left);
+    if(r.report_no) r1.appendChild(el('div','meta', r.report_no));
+    c.appendChild(r1);
+    var m = el('div','meta');
+    var bits = [];
+    if(r.crane_no) bits.push(['Crane / equipment', r.crane_no]);
+    if(r.id_no) bits.push(['ID', r.id_no]);
+    if(r.site) bits.push(['Site', r.site]);
+    if(r.engineer) bits.push(['Engineer', r.engineer]);
+    bits.forEach(function(p, i){
+      if(i) m.appendChild(document.createTextNode('  ·  '));
+      m.appendChild(document.createTextNode(p[0] + ': ')); m.appendChild(el('b','',p[1]));
+    });
+    if(bits.length) c.appendChild(m);
+    if(r.next_due){
+      var n = el('div','meta'); n.appendChild(document.createTextNode('Next due: '));
+      n.appendChild(el('b', 'due' + (r.next_due < today() ? ' over' : ''), uk(r.next_due) + (r.next_due < today() ? ' (overdue)' : '')));
+      c.appendChild(n);
+    }
+    var fl = el('div','flags');
+    if(r.urgent) fl.appendChild(el('span','flag u', r.urgent + (r.urgent === 1 ? ' urgent repair' : ' urgent repairs')));
+    if(r.attention) fl.appendChild(el('span','flag a', r.attention + (r.attention === 1 ? ' item needs attention' : ' items need attention')));
+    if(!r.urgent && !r.attention && r.visit_type !== 'LOLER') fl.appendChild(el('span','flag ok', 'No outstanding issues recorded'));
+    if(fl.childNodes.length) c.appendChild(fl);
+    var act = el('div','act');
+    if(r.has_pdf){
+      var b = el('button','btn small','Download PDF report'); b.type = 'button';
+      b.addEventListener('click', function(){ getPdf(r, b); });
+      act.appendChild(b);
+    } else {
+      act.appendChild(el('span','meta','PDF not available online yet — please contact us for a copy.'));
+    }
+    c.appendChild(act);
+    list.appendChild(c);
+  });
+}
+
+var STAT = {URGENT:'Urgent repair', ATTN:'Needs attention', MONITOR:'Keep an eye on', SERV:'Serviced'};
+function renderCranes(reps, list){
+  var by = {};
+  reps.forEach(function(r){ if(!r.crane_no) return; var k = r.crane_no.trim().toLowerCase(); (by[k] = by[k] || {name:r.crane_no, id:r.id_no, n:0, last:''}); by[k].n++; if((r.report_date||'') > by[k].last) by[k].last = r.report_date || ''; });
+  var arr = Object.keys(by).map(function(k){ return by[k]; }).sort(function(a, b){ return a.name.localeCompare(b.name, undefined, {numeric:true}); });
+  list.appendChild(el('div','meta','Choose a crane to see every visit and the work carried out, taken from our report sheets.'));
+  arr.forEach(function(c){
+    var card = el('div','rep'), r1 = el('div','r1'), left = el('div');
+    left.appendChild(el('span','date', c.name)); r1.appendChild(left);
+    r1.appendChild(el('div','meta', c.n + (c.n === 1 ? ' visit' : ' visits'))); card.appendChild(r1);
+    var m = el('div','meta'); if(c.id) { m.appendChild(document.createTextNode('ID: ')); m.appendChild(el('b','',c.id)); m.appendChild(document.createTextNode('  \u00b7  ')); }
+    m.appendChild(document.createTextNode('Last visit: ')); m.appendChild(el('b','', uk(c.last) || '\u2014')); card.appendChild(m);
+    var act = el('div','act'), b = el('button','btn small','View history'); b.type = 'button';
+    b.addEventListener('click', function(){ showHistory(c.name, b); });
+    act.appendChild(b); card.appendChild(act); list.appendChild(card);
+  });
+}
+function showHistory(name, btn){
+  if(!creds) return;
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Loading\u2026';
+  call({action:'history', customer:creds.customer, pin:creds.pin, crane_no:name}).then(function(x){
+    if(!x.ok){ alert((x.j && x.j.error) || 'Could not load that history.'); return; }
+    var list = $('list'); list.textContent = '';
+    var back = el('button','btn small','\u2190 All cranes'); back.type = 'button'; back.addEventListener('click', render); list.appendChild(back);
+    list.appendChild(el('h3','', 'History: ' + name + (x.j.id_no ? ' (ID ' + x.j.id_no + ')' : '')));
+    var vs = x.j.visits || [];
+    if(!vs.length){ list.appendChild(el('div','empty','No visits found for this crane.')); return; }
+    vs.forEach(function(v){
+      var c = el('div','rep'), r1 = el('div','r1'), left = el('div');
+      left.appendChild(el('span','date', uk(v.report_date) || 'Undated')); left.appendChild(el('span','chip ' + (v.visit_type || ''), v.visit_type || 'Service'));
+      r1.appendChild(left); if(v.report_no) r1.appendChild(el('div','meta', v.report_no)); c.appendChild(r1);
+      var m = el('div','meta'); m.appendChild(document.createTextNode('Engineer: ')); m.appendChild(el('b','', v.engineer || '\u2014'));
+      if(v.site){ m.appendChild(document.createTextNode('  \u00b7  Site: ')); m.appendChild(el('b','', v.site)); } c.appendChild(m);
+      if(v.serviced && v.serviced.length){
+        var d = el('div','meta'); d.appendChild(el('b','','Serviced / checked: '));
+        d.appendChild(document.createTextNode(v.serviced.map(function(s){ return s.l; }).join(', '))); c.appendChild(d);
+      }
+      (v.findings || []).forEach(function(f){
+        var d = el('div','meta'); d.appendChild(el('b','', (STAT[f.s] || 'Noted') + ' \u2013 ' + f.l + ': '));
+        d.appendChild(document.createTextNode([f.n, f.w ? 'Work done: ' + f.w : ''].filter(Boolean).join(' \u2014 '))); c.appendChild(d);
+      });
+      if(v.notes){ var n = el('div','meta'); n.appendChild(el('b','','Engineer\u2019s notes: ')); n.appendChild(document.createTextNode(v.notes)); c.appendChild(n); }
+      list.appendChild(c);
+    });
+    window.scrollTo(0, 0);
+  }).catch(function(){ alert('No connection. Please try again.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = old; bump(); });
+}
+function renderJobs(jobs, list){
+  if(!jobs.length){ list.appendChild(el('div','empty','No completed job sheets to show yet.')); return; }
+  jobs.forEach(function(j){
+    var card = el('div','rep'), r1 = el('div','r1'), left = el('div');
+    left.appendChild(el('span','date', uk(j.date) || 'Undated'));
+    left.appendChild(el('span','chip Load', j.type || 'Job'));
+    r1.appendChild(left); if(j.job) r1.appendChild(el('div','meta', 'Job ' + j.job)); card.appendChild(r1);
+    var m = el('div','meta'), bits = [];
+    if(j.site) bits.push(['Site', j.site]);
+    if(j.equipment) bits.push(['Equipment', j.equipment]);
+    if(j.engineers && j.engineers.length) bits.push(['Engineer' + (j.engineers.length > 1 ? 's' : ''), j.engineers.join(', ')]);
+    bits.forEach(function(p, i){ if(i) m.appendChild(document.createTextNode('  \u00b7  ')); m.appendChild(document.createTextNode(p[0] + ': ')); m.appendChild(el('b','',p[1])); });
+    if(bits.length) card.appendChild(m);
+    if(j.work){ var w = el('div','meta'); w.appendChild(el('b','','Work carried out: ')); w.appendChild(document.createTextNode(j.work)); w.style.whiteSpace = 'pre-wrap'; card.appendChild(w); }
+    if(j.defects){ var d = el('div','meta'); d.appendChild(el('b','','Defects / notes: ')); d.appendChild(document.createTextNode(j.defects)); d.style.whiteSpace = 'pre-wrap'; card.appendChild(d); }
+    if(j.materials && j.materials.length){ var mt = el('div','meta'); mt.appendChild(el('b','','Parts / materials: ')); mt.appendChild(document.createTextNode(j.materials.join(', '))); card.appendChild(mt); }
+    if(j.signed_by){ var s = el('div','meta'); s.appendChild(document.createTextNode('Signed off by: ')); s.appendChild(el('b','',j.signed_by)); card.appendChild(s); }
+    list.appendChild(card);
+  });
+}
+function renderRas(ras, list){
+  if(!ras.length){ list.appendChild(el('div','empty','No risk assessments to show yet.')); return; }
+  ras.forEach(function(x){
+    var card = el('div','rep'), r1 = el('div','r1'), left = el('div');
+    left.appendChild(el('span','date', uk(x.date) || 'Undated'));
+    left.appendChild(el('span','chip Load','Risk assessment'));
+    r1.appendChild(left); r1.appendChild(el('div','meta', x.ref)); card.appendChild(r1);
+    var m = el('div','meta'), bits = [];
+    if(x.site) bits.push(['Site', x.site]);
+    if(x.location) bits.push(['Location', x.location]);
+    if(x.assessed_by) bits.push(['Assessed by', x.assessed_by]);
+    bits.forEach(function(p, i){ if(i) m.appendChild(document.createTextNode('  \u00b7  ')); m.appendChild(document.createTextNode(p[0] + ': ')); m.appendChild(el('b','',p[1])); });
+    if(bits.length) card.appendChild(m);
+    if(x.work) card.appendChild(el('div','meta', x.work));
+    var act = el('div','act'), b = el('button','btn small','Download PDF'); b.type = 'button';
+    b.addEventListener('click', function(){ getRaPdf(x, b); });
+    act.appendChild(b); card.appendChild(act); list.appendChild(card);
+  });
+}
+function getRaPdf(x, btn){
+  if(!creds) return;
+  var w = null; try{ w = window.open('', '_blank'); }catch(e){}
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing\u2026';
+  call({action:'ra_pdf', customer:creds.customer, pin:creds.pin, ra_id:x.id}).then(function(r){
+    if(!r.ok || !r.j.url){ if(w) w.close(); alert((r.j && r.j.error) || 'Could not open that PDF.'); return; }
+    if(w){ w.location.href = r.j.url; } else { window.location.href = r.j.url; }
+  }).catch(function(){ if(w) w.close(); alert('No connection. Please try again.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = old; bump(); });
+}
+
+function renderCerts(certs, list){
+  if(!certs.length){ list.appendChild(el('div','empty','No load test certificates to show yet.')); return; }
+  certs.forEach(function(c){
+    var card = el('div','rep'), r1 = el('div','r1'), left = el('div');
+    left.appendChild(el('span','date', uk(c.test_date) || 'Undated'));
+    left.appendChild(el('span','chip Load', c.test_type === 'jib' ? 'Swing jib load test' : 'Crane beam load test'));
+    r1.appendChild(left); r1.appendChild(el('div','meta', c.cert_no)); card.appendChild(r1);
+    var m = el('div','meta'), bits = [];
+    if(c.equip) bits.push(['Crane / equipment', c.equip]);
+    if(c.site) bits.push(['Site', c.site]);
+    if(c.location) bits.push(['Location', c.location]);
+    if(c.swl) bits.push(['SWL', c.swl + ' kg']);
+    if(c.engineer) bits.push(['Engineer', c.engineer]);
+    bits.forEach(function(p, i){ if(i) m.appendChild(document.createTextNode('  \u00b7  ')); m.appendChild(document.createTextNode(p[0] + ': ')); m.appendChild(el('b','',p[1])); });
+    if(bits.length) card.appendChild(m);
+    var fl = el('div','flags'); fl.appendChild(el('span','flag ' + (c.result === 'pass' ? 'pass' : 'fail'), c.result === 'pass' ? 'PASS' : 'FAIL')); card.appendChild(fl);
+    var act = el('div','act'), b = el('button','btn small','View / print certificate'); b.type = 'button';
+    b.addEventListener('click', function(){ showCert(c, b); });
+    act.appendChild(b); card.appendChild(act); list.appendChild(card);
+  });
+}
+function showCert(c, btn){
+  if(!creds) return;
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Opening\u2026';
+  call({action:'cert', customer:creds.customer, pin:creds.pin, cert_id:c.id}).then(function(x){
+    if(!x.ok || !x.j.certificate){ alert((x.j && x.j.error) || 'Could not open that certificate.'); return; }
+    drawCert(x.j.certificate);
+  }).catch(function(){ alert('No connection. Please try again.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = old; bump(); });
+}
+function drawCert(c){
+  var r = c.results || {}, body = $('certBody'); body.textContent = '';
+  function f(n){ return String(Math.round((+n || 0) * 100) / 100); }
+  body.appendChild(el('h3','','Certificate of Load Test ' + (c.certNo || '')));
+  body.appendChild(el('div','meta', c.testType === 'jib' ? 'Swing Jib Load Test' : 'Overhead Crane Beam Load Test'));
+  var info = el('div','meta');
+  [['Customer', c.customer], ['Site', c.site], ['Location', c.location], ['Equipment / jib ref', c.equip], ['Date of test', uk(c.date)], ['Engineer', c.engineer]].forEach(function(p){
+    if(!p[1]) return; var d = el('div'); d.appendChild(document.createTextNode(p[0] + ': ')); d.appendChild(el('b','',p[1])); info.appendChild(d);
+  });
+  body.appendChild(info);
+  var t = document.createElement('table');
+  [[c.testType === 'jib' ? 'Jib length' : 'Beam length', f(r.beam) + ' mm'], ['Datum - no load', f(r.noLoad) + ' mm'], ['Datum - with load', f(r.withLoad) + ' mm'], ['Datum - after test', f(r.afterTest) + ' mm'],
+   ['Measured deflection under load', f(r.deflection) + ' mm'], ['Permitted tolerance', f(r.tolerance) + ' mm'], ['Residual deflection', f(r.residual) + ' mm'],
+   ['Safe working load (SWL)', f(r.swl) + ' kg'], ['Required test load (125% SWL)', f(r.testLoadRequired) + ' kg'], ['Test load applied', f(r.testLoad) + ' kg']]
+   .concat(c.uprate ? [['Uprated to', c.uprate + ' kg']] : []).concat(c.downrate ? [['Down rated to', c.downrate + ' kg']] : [])
+   .forEach(function(p){ var tr = document.createElement('tr'); tr.appendChild(el('td','',p[0])); tr.appendChild(el('td','',p[1])); t.appendChild(tr); });
+  body.appendChild(t);
+  body.appendChild(el('div','res','Result: ' + (r.pass ? 'PASS' : 'FAIL')));
+  body.appendChild(el('div','meta','Key Engineering (Chesterfield) Ltd \u2014 Electrical Overhead Cranes & Plant'));
+  $('certOv').style.display = 'block';
+}
+$('certClose').addEventListener('click', function(){ $('certOv').style.display = 'none'; });
+$('certPrint').addEventListener('click', function(){ document.body.classList.add('printing'); window.print(); setTimeout(function(){ document.body.classList.remove('printing'); }, 500); });
+
+function fileSize(n){ n = +n || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n ? n + ' B' : ''; }
+function renderDocs(docs, list){
+  list.appendChild(el('div','meta','Documents and photos Key Engineering have shared with you.'));
+  if(!docs.length){ list.appendChild(el('div','empty','Nothing has been shared with you yet.')); return; }
+  docs.forEach(function(d){
+    var card = el('div','rep'), r1 = el('div','r1'), left = el('div');
+    left.appendChild(el('span','date', uk((d.created_at || '').slice(0, 10)) || ''));
+    left.appendChild(el('span','chip', /^image\//.test(d.mime || '') ? 'Photo' : 'Document'));
+    r1.appendChild(left); var sz = fileSize(d.size); if(sz) r1.appendChild(el('div','meta', sz)); card.appendChild(r1);
+    var m = el('div','meta'); m.appendChild(el('b','', d.filename || 'File')); card.appendChild(m);
+    if(d.note) card.appendChild(el('div','meta', d.note));
+    var act = el('div','act'), b = el('button','btn small','Open / download'); b.type = 'button';
+    b.addEventListener('click', function(){ getDoc(d, b); });
+    act.appendChild(b); card.appendChild(act); list.appendChild(card);
+  });
+}
+function getDoc(d, btn){
+  if(!creds) return;
+  var w = null; try{ w = window.open('', '_blank'); }catch(e){}
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+  call({action:'doc', customer:creds.customer, pin:creds.pin, doc_id:d.id}).then(function(x){
+    if(!x.ok || !x.j.url){ if(w) w.close(); alert((x.j && x.j.error) || 'Could not open that file.'); return; }
+    if(w){ w.location.href = x.j.url; } else { window.location.href = x.j.url; }
+  }).catch(function(){ if(w) w.close(); alert('No connection. Please try again.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = old; bump(); });
+}
+function getPdf(r, btn){
+  if(!creds) return;
+  var w = null; try{ w = window.open('', '_blank'); }catch(e){}   // opened now so iPads don't block it
+  var old = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+  call({action:'pdf', customer:creds.customer, pin:creds.pin, report_id:r.id}).then(function(x){
+    if(!x.ok || !x.j.url){ if(w) w.close(); alert((x.j && x.j.error) || 'Could not open that PDF.'); return; }
+    if(w){ w.location.href = x.j.url; } else { window.location.href = x.j.url; }
+  }).catch(function(){ if(w) w.close(); alert('No connection. Please try again.'); })
+  .then(function(){ btn.disabled = false; btn.textContent = old; bump(); });
+}
+
+try{                                   // links from emails arrive with ?c=Company+name already filled in
+  var pre = new URLSearchParams(window.location.search).get('c');
+  if(pre){ $('co').value = pre.slice(0, 100); setTimeout(function(){ $('pin').focus(); }, 50); }
+  var hp = /(?:^|[#&])p=([0-9A-Za-z]{1,12})/.exec(window.location.hash || '');   // staff "open portal" button from the Control Room
+  if(pre && hp){
+    $('pin').value = hp[1];
+    try{ history.replaceState(null, '', window.location.pathname); }catch(e){}   // wipe the PIN from the address bar
+    setTimeout(function(){ login(); }, 80);
+  }
+}catch(e){}
+$('go').addEventListener('click', login);
+$('pin').addEventListener('keydown', function(e){ if(e.key === 'Enter') login(); });
+$('co').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('pin').focus(); });
+$('out').addEventListener('click', signOut);
+
+function visitReset(){ ['vMsg','vCrane','vName','vPhone','vEmail','vDate'].forEach(function(i){ $(i).value = ''; }); $('vErr').textContent = ''; }
+$('vOpen').addEventListener('click', function(){ $('vDone').textContent = ''; $('visitForm').style.display = ''; $('vMsg').focus(); });
+$('vCancel').addEventListener('click', function(){ $('visitForm').style.display = 'none'; visitReset(); });
+$('vSend').addEventListener('click', function(){
+  if(!creds) return;
+  var msg = $('vMsg').value.trim(), ph = $('vPhone').value.trim(), em = $('vEmail').value.trim();
+  $('vErr').textContent = '';
+  if(!msg){ $('vErr').textContent = 'Please tell us what you need.'; return; }
+  if(!ph && !em){ $('vErr').textContent = 'Please give us a phone number or email so we can reply.'; return; }
+  var b = $('vSend'); b.disabled = true; b.textContent = 'Sending…';
+  call({action:'request_visit', customer:creds.customer, pin:creds.pin, message:msg, crane_no:$('vCrane').value.trim(),
+        contact_name:$('vName').value.trim(), phone:ph, email:em, preferred_date:$('vDate').value.trim()}).then(function(r){
+    if(!r.ok){ $('vErr').textContent = (r.j && r.j.error) || 'Could not send. Please call Key Engineering.'; return; }
+    $('visitForm').style.display = 'none'; visitReset();
+    $('vDone').textContent = 'Request sent \u2014 we will be in touch.';
+  }).catch(function(){ $('vErr').textContent = 'No connection. Please try again.'; })
+  .then(function(){ b.disabled = false; b.textContent = 'Send request'; bump(); });
+});
+})();
+</script>
+</body>
+</html>
