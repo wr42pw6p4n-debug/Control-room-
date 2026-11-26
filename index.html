@@ -92,7 +92,7 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 #login button{width:100%;margin-top:10px;padding:12px}
 details summary{cursor:pointer;color:var(--accent-dark);font-weight:700}
 .hide{display:none!important}
-#v-portals.ro [data-pgive],#v-portals.ro [data-pnew],#v-portals.ro [data-prev],#v-portals.ro [data-pe],#v-portals.ro [data-pd],#v-portals.ro #pDetails{display:none!important}
+#v-portals.ro [data-pdocs],#v-portals.ro [data-pgive],#v-portals.ro [data-pnew],#v-portals.ro [data-prev],#v-portals.ro [data-pe],#v-portals.ro [data-pd],#v-portals.ro #pDetails{display:none!important}
 #wall{position:fixed;inset:0;z-index:100000;background:#0b1522;color:#fff;font-family:Arial,Helvetica,sans-serif;padding:2.2vw 3vw;overflow:auto}
 #wall .whead{display:flex;align-items:center;justify-content:space-between;gap:20px}#wall .wclock{font-size:7vw;font-weight:800;line-height:1}#wall .wdate{font-size:2.4vw;color:#9fb3c8}
 #wall .wbrand{font-size:2.2vw;font-weight:800;letter-spacing:.12em;color:#f2b92c;text-align:right}#wall .wbrand small{font-size:1.4vw;color:#9fb3c8;letter-spacing:.2em}
@@ -311,7 +311,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-24.1';
+const APP_BUILD='2026-11-26.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -1377,6 +1377,47 @@ async function copyRich(body, link){
   try{ if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){ await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([h],{type:'text/html'}),'text/plain':new Blob([body],{type:'text/plain'})})]); return true; } }catch(e){}
   try{ const d=document.createElement('div'); d.innerHTML=h; d.style.cssText='position:fixed;left:-9999px;top:0'; document.body.appendChild(d); const r=document.createRange(); r.selectNodeContents(d); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); const ok=document.execCommand('copy'); sel.removeAllRanges(); d.remove(); return ok; }catch(e){ return false; }
 }
+// ----- documents / photos the office shares with a customer (they appear under "Documents" in that customer's portal) -----
+async function docsModal(nameKey, custName){
+  const m=document.createElement('div'); m.className='regmodal';
+  m.innerHTML=`<div class="card" style="max-height:92vh;overflow:auto;max-width:640px;width:100%"><h2>Documents for ${esc(custName)}</h2>
+   <p class="small mute">Anything you add here appears under <b>Documents</b> when this customer opens their portal. Photos, PDFs, Word or Excel files, up to 25 MB each.</p>
+   <div id="dmList" class="small">Loading…</div>
+   <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+    <label class="small" style="display:block">Add a file or take a photo<input id="dmFile" type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="width:100%"></label>
+    <label class="small" style="display:block;margin-top:8px">Short note for the customer (optional)<input id="dmNote" class="fld" maxlength="200" style="width:100%" placeholder="e.g. Quote for hoist rope replacement"></label>
+    <p style="margin:10px 0 0;display:flex;gap:8px;flex-wrap:wrap"><button class="primary" id="dmGo">Upload</button><button id="dmX">Close</button></p><div class="small mute" id="dmMsg"></div></div></div>`;
+  document.body.appendChild(m); const q=i=>m.querySelector('#'+i), close=()=>m.remove(); m.onclick=ev=>{ if(ev.target===m) close(); }; q('dmX').onclick=close;
+  const size=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':n>=1024?Math.round(n/1024)+' KB':(n||0)+' B';
+  const hdr={'Content-Type':'application/json',Prefer:'return=minimal'};
+  const paint=async()=>{
+    try{
+      const rows=await (await api('/rest/v1/portal_docs?select=*&name_key=eq.'+encodeURIComponent(nameKey)+'&order=created_at.desc')).json();
+      q('dmList').innerHTML=rows.length?rows.map(d=>`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line)"><div style="min-width:0;overflow-wrap:anywhere"><b>${esc(d.filename)}</b><div class="mute small">${uk((d.created_at||'').slice(0,10))} · ${esc(size(d.size))}${d.note?' · '+esc(d.note):''}</div></div><span style="white-space:nowrap"><button data-dv="${esc(d.id)}">View</button> <button data-dd="${esc(d.id)}">Remove</button></span></div>`).join(''):'<span class="mute">Nothing shared yet.</span>';
+      q('dmList').querySelectorAll('[data-dv]').forEach(b=>b.onclick=async()=>{ const d=rows.find(x=>x.id===b.dataset.dv); const w=window.open('','_blank'); try{ const j=await (await api('/storage/v1/object/sign/customer-docs/'+d.path.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:300})})).json(); const rel=String(j.signedURL||j.signedUrl||''); const u=rel.startsWith('http')?rel:SB.url+'/storage/v1'+(rel.startsWith('/')?'':'/')+rel; if(w) w.location.href=u; else location.href=u; }catch(e){ if(w) w.close(); q('dmMsg').textContent='Could not open it: '+e.message; } });
+      q('dmList').querySelectorAll('[data-dd]').forEach(b=>b.onclick=async()=>{ const d=rows.find(x=>x.id===b.dataset.dd); if(!confirm('Remove "'+d.filename+'" from this customer\'s portal? They will no longer see it.')) return; b.disabled=true; try{ await api('/rest/v1/portal_docs?id=eq.'+encodeURIComponent(d.id),{method:'DELETE',headers:{Prefer:'return=minimal'}}); try{ await api('/storage/v1/object/customer-docs/'+d.path.split('/').map(encodeURIComponent).join('/'),{method:'DELETE'}); }catch(e){} paint(); }catch(e){ b.disabled=false; q('dmMsg').textContent='Could not remove: '+e.message; } });
+    }catch(e){ q('dmList').innerHTML='<span class="err">Could not load: '+esc(e.message)+'</span>'; }
+  };
+  q('dmGo').onclick=async()=>{
+    const files=[...q('dmFile').files]; if(!files.length){ q('dmMsg').textContent='Choose a file or take a photo first.'; return; }
+    const big=files.find(f=>f.size>25*1024*1024); if(big){ q('dmMsg').textContent=big.name+' is over 25 MB - too big.'; return; }
+    q('dmGo').disabled=true; let done=0;
+    try{
+      for(const f of files){
+        q('dmMsg').textContent='Uploading '+(done+1)+' of '+files.length+'…';
+        const safe=(f.name||'file').replace(/[^A-Za-z0-9._-]+/g,'_').slice(-80)||'file';
+        const folder=String(nameKey).replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,50)||'customer';
+        const path=folder+'/'+Date.now().toString(36)+'_'+safe;
+        await api('/storage/v1/object/customer-docs/'+path.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:{'Content-Type':f.type||'application/octet-stream','x-upsert':'false'},body:f});
+        await api('/rest/v1/portal_docs',{method:'POST',headers:hdr,body:JSON.stringify({name_key:nameKey,customer:custName,filename:f.name||safe,path,size:f.size,mime:f.type||null,note:q('dmNote').value.trim()||null,uploaded_by:(whoName&&whoName())||null})});
+        done++;
+      }
+      q('dmFile').value=''; q('dmNote').value=''; q('dmMsg').textContent=done+' file'+(done===1?'':'s')+' uploaded. The customer can see '+(done===1?'it':'them')+' in their portal now.'; paint();
+    }catch(e){ q('dmMsg').textContent='Could not upload'+(done?' (the first '+done+' worked)':'')+': '+e.message; }
+    q('dmGo').disabled=false;
+  };
+  paint();
+}
 // ----- Key Engineering customer portal logins: company name + 6-digit PIN (customers.data.customerpin, checked by the portal) -----
 let pinQ = '';
 function viewPortals(){
@@ -1393,7 +1434,7 @@ function viewPortals(){
   const list=()=>{
     const rs=D.custs.map(c=>({key:c.name_key,name:String((c.data&&c.data.customer)||c.name_key),pin:String((c.data&&c.data.customerpin)||'').trim()}))
       .filter(r=>!pinQ.trim()||(r.name+' '+r.pin).toLowerCase().includes(pinQ.trim().toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name));
-    $('pinList').innerHTML=rs.length?`<div class="wrap"><table><tr><th>Customer</th><th>Portal PIN</th><th></th></tr>${rs.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${r.pin?`<span style="font-size:18px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums">${esc(r.pin)}</span>`:'<span class="pill grey">NO PORTAL ACCESS</span>'}</td><td style="white-space:nowrap">${r.pin?`<button data-pcopy="${esc(r.key)}">Copy PIN</button> <button class="primary" data-pview="${esc(r.key)}">Open their reports ↗</button> <button data-plogin="${esc(r.key)}">Copy login details</button> <button data-pnew="${esc(r.key)}">New PIN</button> <button data-prev="${esc(r.key)}">Remove access</button>`:`<button class="primary" data-pgive="${esc(r.key)}">Give portal access</button>`}</td></tr>`).join('')}</table></div>`
+    $('pinList').innerHTML=rs.length?`<div class="wrap"><table><tr><th>Customer</th><th>Portal PIN</th><th></th></tr>${rs.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${r.pin?`<span style="font-size:18px;font-weight:800;letter-spacing:.12em;font-variant-numeric:tabular-nums">${esc(r.pin)}</span>`:'<span class="pill grey">NO PORTAL ACCESS</span>'}</td><td style="white-space:nowrap">${r.pin?`<button data-pcopy="${esc(r.key)}">Copy PIN</button> <button class="primary" data-pview="${esc(r.key)}">Open their reports ↗</button> <button data-pdocs="${esc(r.key)}">📎 Documents</button> <button data-plogin="${esc(r.key)}">Copy login details</button> <button data-pnew="${esc(r.key)}">New PIN</button> <button data-prev="${esc(r.key)}">Remove access</button>`:`<button class="primary" data-pgive="${esc(r.key)}">Give portal access</button>`}</td></tr>`).join('')}</table></div>`
       :`<div class="empty-state">${D.custs.length?'No matches.':'No customers found yet. Customers are added in the Crane Service Report app.'}</div>`;
     const cust=k=>D.custs.find(c=>c.name_key===k), nm=c=>String((c.data&&c.data.customer)||c.name_key), pn=c=>String((c.data&&c.data.customerpin)||'').trim();
     const rpc=async(fn,body,done)=>{ try{ const r=await (await api('/rest/v1/rpc/'+fn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).text(); await load(); render(); $('msg').innerHTML='<div class="note">'+esc(done(r.replace(/"/g,'')))+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); }catch(e){ holErr(e); } };
@@ -1401,6 +1442,7 @@ function viewPortals(){
     $('pinList').querySelectorAll('button[data-pgive]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pgive); b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:false},pin=>'Portal access created for '+nm(c)+'. PIN: '+pin+'. Use “Copy login details” to send it to them.'); });
     $('pinList').querySelectorAll('button[data-pnew]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pnew); if(!confirm('Make a new PIN for '+nm(c)+'?\n\nTheir old PIN stops working straight away, so you will need to give them the new one.')) return; b.disabled=true; rpc('generate_customer_pin',{p_name_key:c.name_key,p_force:true},pin=>'New PIN for '+nm(c)+': '+pin+'. The old one no longer works.'); });
     $('pinList').querySelectorAll('button[data-prev]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.prev); if(!confirm('Remove portal access for '+nm(c)+'?\n\nTheir PIN stops working straight away. You can give access again later with a new PIN.')) return; b.disabled=true; rpc('revoke_customer_pin',{p_name_key:c.name_key},()=>'Portal access removed for '+nm(c)+'.'); });
+    $('pinList').querySelectorAll('button[data-pdocs]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pdocs); if(c) docsModal(b.dataset.pdocs, nm(c)); });
     $('pinList').querySelectorAll('button[data-pcopy]').forEach(b=>b.onclick=async()=>{ const ok=await copyText(pn(cust(b.dataset.pcopy))); flash(b,ok?'Copied ✓':'Not copied'); });
     $('pinList').querySelectorAll('button[data-pview]').forEach(b=>b.onclick=()=>{ const c=cust(b.dataset.pview), url=(store.get('portal_url')||PORTAL_DEFAULT_URL).trim(); if(!c||!url) return; window.open(url+(url.includes('?')?'&':'?')+'c='+encodeURIComponent(nm(c))+'#p='+encodeURIComponent(pn(c)),'_blank','noopener'); });
     $('pinList').querySelectorAll('button[data-plogin]').forEach(b=>b.onclick=async()=>{ const c=cust(b.dataset.plogin), url=(store.get('portal_url')||PORTAL_DEFAULT_URL).trim(), link=url?url+(url.includes('?')?'&':'?')+'c='+encodeURIComponent(nm(c)):''; const ok=await copyText('Key Engineering customer portal\n'+(link?'Address: '+link+'\n':'')+'Company name: '+nm(c)+'\nPIN: '+pn(c)); flash(b,ok?'Copied ✓':'Not copied'); });
