@@ -311,7 +311,7 @@ async function getAll(table, query){
   } return out;
 }
 
-const APP_BUILD='2026-11-26.1';
+const APP_BUILD='2026-11-27.1';
 let D = {appr:[], notes:[], bkCust:[], diary:[], regCfg:[], regChecks:[], backups:undefined, bookings:[], people:[], phones:{}, mats:{}, jobs:[], reports:[], comps:{}, pos:[], folders:[], portals:[], custs:[], fleet:[], visits:[], staffPhones:[], tracker:[], hol:{staff:[],bank:[],allow:{},reqs:[],approvers:[],work:[]}, profile:null, jobsBlocked:false, posBlocked:false, loaded:null};
 
 async function load(){
@@ -1128,17 +1128,24 @@ function viewFolders(){
   const missing=Object.values(miss);
   const pill=f=>f.processed_at?'<span class="pill green">PROCESSED</span>':f.printed_at?'<span class="pill grey">PRINTED</span>':'<span class="pill amber">NEW</span>';
   const when=s=>new Date(s).toLocaleString('en-GB',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-  const row=f=>`<tr><td>${pill(f)}</td><td><b>${esc(f.engineer)}</b></td><td class="r">${esc(f.job_count)}</td><td>${esc(when(f.merged_at))}</td><td><button class="primary" data-fa="open" data-id="${esc(f.id)}">Open / print</button> <button data-fa="printed" data-id="${esc(f.id)}" ${f.printed_at?'disabled':''}>Mark printed</button> <button data-fa="processed" data-id="${esc(f.id)}" ${f.processed_at?'disabled':''}>Mark processed</button></td></tr>`;
+  const row=f=>`<tr><td>${pill(f)}</td><td><b>${esc(f.engineer)}</b></td><td class="r">${esc(f.job_count)}</td><td>${esc(when(f.merged_at))}</td><td><button class="primary" data-fa="open" data-id="${esc(f.id)}">Open / print</button> <button data-fa="printed" data-id="${esc(f.id)}" ${f.printed_at?'disabled':''}>Mark printed</button> <button data-fa="processed" data-id="${esc(f.id)}" ${f.processed_at?'disabled':''}>Mark processed</button> <button data-fa="adddoc" data-id="${esc(f.id)}">Add document</button></td></tr>`;
   $('v-folders').innerHTML=`<div class="bar"><button id="fPrev">◀</button><b>Week ending ${uk(foldersWeek)}</b> <span class="mute small">Mon ${uk(addDays(foldersWeek,-6))} to Sun ${uk(foldersWeek)}</span><button id="fNext">▶</button><button id="fNow">Latest</button><span class="sp"></span><button id="fAll" class="primary" ${list.length?'':'disabled'}>Print whole week</button></div>
   <div class="note">Filed automatically when an engineer presses “Merge Job Sheets This Week” in the Job Manager. Open a folder to print it, or use Print whole week for one combined PDF to print on Monday morning.</div>
   ${missing.length?`<div class="note"><b>Jobs found but not merged yet:</b> ${missing.map(m=>esc(m.name)+' ('+m.n+' job'+(m.n===1?'':'s')+')').join(', ')}. They need to press Merge Job Sheets This Week in the Job Manager.</div>`:''}
-  <div class="card"><h2>Engineer folders <span class="mute small">${list.length}</span></h2><div class="wrap">${list.length?`<table><tr><th></th><th>Engineer</th><th class="r">Jobs</th><th>Merged</th><th></th></tr>${list.map(row).join('')}</table>`:'<span class="mute">Nothing has been merged for this week yet.</span>'}</div></div>`;
+  <div class="card"><h2>Engineer folders <span class="mute small">${list.length}</span></h2><div class="wrap">${list.length?`<table><tr><th></th><th>Engineer</th><th class="r">Jobs</th><th>Merged</th><th></th></tr>${list.map(row).join('')}</table>`:'<span class="mute">Nothing has been merged for this week yet.</span>'}</div></div>
+  <div class="card"><h2>Documents &amp; emailed invoices <span class="mute small">for this week</span></h2><div class="wrap">
+    <div class="note">Upload an invoice that was emailed to you, or any document, against an engineer. It is filed with that engineer for the week ending ${uk(foldersWeek)}. PDFs, photos, Word/Excel files and saved emails all work.</div>
+    <div class="bar"><select id="wdEng">${[...new Set(list.map(f=>f.engineer).concat(missing.map(m=>m.name)).concat(D.folders.map(f=>f.engineer)))].sort().map(n=>'<option>'+esc(n)+'</option>').join('')}</select>
+    <input type="file" id="wdFile" multiple accept=".pdf,.png,.jpg,.jpeg,.heic,.doc,.docx,.xls,.xlsx,.csv,.txt,.eml,.msg,image/*,application/pdf">
+    <button class="primary" id="wdGo">⬆ Upload document</button></div>
+    <div id="wdList"><span class="mute">Loading…</span></div></div></div>`;
   $('fPrev').onclick=()=>{foldersWeek=addDays(foldersWeek,-7);viewFolders();};
   $('fNext').onclick=()=>{foldersWeek=addDays(foldersWeek,7);viewFolders();};
   $('fNow').onclick=()=>{foldersWeek='';viewFolders();};
   const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); };
   $('v-folders').querySelectorAll('button[data-fa]').forEach(b=>b.onclick=async()=>{
     const f=list.find(x=>x.id===b.dataset.id), act=b.dataset.fa; if(!f) return;
+    if(act==='adddoc'){ $('wdEng').value=f.engineer; $('wdFile').scrollIntoView({behavior:'smooth',block:'center'}); $('wdFile').click(); return; }
     b.disabled=true;
     try{
       if(act==='open'){
@@ -1164,6 +1171,49 @@ function viewFolders(){
       const url=URL.createObjectURL(new Blob([await out.save()],{type:'application/pdf'}));
       if(w) w.location=url; else location.href=url;
     }catch(e){ if(w) w.close(); fail(e); }
+    btn.disabled=false; btn.textContent=label;
+  };
+  wdRender(list);
+}
+// ---- documents / emailed invoices filed against an engineer for the week ----
+const wdSafe = n => String(n||'file').replace(/[^A-Za-z0-9._ -]+/g,'_').replace(/\s+/g,' ').slice(0,120);
+async function wdRender(list){
+  const box=$('wdList'); if(!box) return;
+  let docs=[]; try{ docs=await getAll('weekly_docs','select=*&order=uploaded_at.desc'); }catch(e){ box.innerHTML='<span class="err">Could not load documents: '+esc(e.message)+'</span>'; }
+  docs=docs.filter(d=>d.week_ending===foldersWeek);
+  const when=s=>new Date(s).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  box.innerHTML=docs.length?`<table><tr><th>Engineer</th><th>Document</th><th>Added</th><th></th></tr>${docs.map(d=>`<tr><td><b>${esc(d.engineer)}</b></td><td>${esc(d.file_name)}</td><td>${esc(when(d.uploaded_at))}</td><td><button data-wd="open" data-id="${esc(d.id)}">Open</button> <button data-wd="del" data-id="${esc(d.id)}">Delete</button></td></tr>`).join('')}</table>`:'<span class="mute">No documents added for this week yet.</span>';
+  const fail=e=>{ $('msg').innerHTML='<div class="err">'+esc(e.message)+'</div>'; window.scrollTo({top:0,behavior:'smooth'}); };
+  box.querySelectorAll('button[data-wd]').forEach(b=>b.onclick=async()=>{
+    const d=docs.find(x=>x.id===b.dataset.id); if(!d) return;
+    try{
+      if(b.dataset.wd==='open'){
+        const w=window.open('','_blank');
+        try{ const r=await api('/storage/v1/object/authenticated/weekly-job-sheets/'+d.file_path.split('/').map(encodeURIComponent).join('/')); const bl=await r.blob(); const url=URL.createObjectURL(d.mime&&bl.type!==d.mime?new Blob([bl],{type:d.mime}):bl); if(w) w.location=url; else location.href=url; }catch(e){ if(w) w.close(); throw e; }
+        return;
+      }
+      if(!confirm('Delete "'+d.file_name+'" for '+d.engineer+'?')) return;
+      await api('/rest/v1/weekly_docs?id=eq.'+encodeURIComponent(d.id),{method:'DELETE',headers:{Prefer:'return=minimal'}});
+      try{ await api('/storage/v1/object/weekly-job-sheets/'+d.file_path.split('/').map(encodeURIComponent).join('/'),{method:'DELETE'}); }catch(e){}
+      wdRender(list);
+    }catch(e){ fail(e.status===403||/row-level|policy/i.test(e.message)?new Error('Only an admin can delete documents.'):e); }
+  });
+  $('wdGo').onclick=async()=>{
+    const files=[...($('wdFile').files||[])], eng=$('wdEng').value;
+    if(!eng){ fail(new Error('Choose an engineer first.')); return; }
+    if(!files.length){ fail(new Error('Choose a file to upload first.')); return; }
+    const btn=$('wdGo'), label=btn.textContent; btn.disabled=true; btn.textContent='Uploading…';
+    try{
+      const uid=(store.get('session')||{}).uid||null, key=firstKey(eng);
+      for(const f of files){
+        if(f.size>25*1024*1024) throw new Error(f.name+' is over 25 MB.');
+        const path='docs/'+key+'/'+foldersWeek+'/'+Date.now()+'-'+wdSafe(f.name);
+        await api('/storage/v1/object/weekly-job-sheets/'+path.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:{'Content-Type':f.type||'application/octet-stream','x-upsert':'false'},body:f});
+        await api('/rest/v1/weekly_docs',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({engineer:eng,engineer_key:key,week_ending:foldersWeek,file_path:path,file_name:f.name,mime:f.type||null,uploaded_by:uid})});
+      }
+      $('wdFile').value=''; $('msg').innerHTML='<div class="note">Uploaded '+files.length+' document'+(files.length===1?'':'s')+' for '+esc(eng)+'.</div>';
+      await wdRender(list);
+    }catch(e){ fail(e); }
     btn.disabled=false; btn.textContent=label;
   };
 }
